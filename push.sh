@@ -15,7 +15,7 @@ git commit -m "$MESSAGE"
 git push
 
 # Build and push amd64 Docker image to GHCR
-docker buildx build --platform linux/amd64 \
+docker buildx build --platform linux/amd64 --no-cache \
   -t ghcr.io/happytree92/landisassessments:latest \
   --push .
 
