@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { assessmentTokens, customers, templates } from "@/lib/db/schema";
+import { assessmentTokens, customers, templates, settings } from "@/lib/db/schema";
 import { verifyToken } from "@/lib/auth";
 import { log } from "@/lib/logger";
 
@@ -62,9 +62,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       .returning()
       .get();
 
-    // Build the shareable URL from the request origin
-    const origin = req.nextUrl.origin;
-    const shareUrl = `${origin}/assess/${token}`;
+    // Build the shareable URL using configured base URL, falling back to request origin
+    const baseUrlRow = db.select().from(settings).where(eq(settings.key, "base_url")).get();
+    const baseUrl = baseUrlRow?.value?.replace(/\/$/, "") || req.nextUrl.origin;
+    const shareUrl = `${baseUrl}/assess/${token}`;
 
     log({
       level: "info",

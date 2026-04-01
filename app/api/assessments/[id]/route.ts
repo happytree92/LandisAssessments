@@ -48,6 +48,57 @@ export async function GET(
   }
 }
 
+// DELETE /api/assessments/[id] — admin only, hard-delete the assessment and its answers
+export async function DELETE(
+  req: NextRequest,
+  { params }: RouteContext
+): Promise<NextResponse> {
+  try {
+    const sessionCookie = req.cookies.get("session")?.value;
+    if (!sessionCookie) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const session = await verifyToken(sessionCookie);
+    if (session.role !== "admin") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const { id } = await params;
+    const assessmentId = parseInt(id, 10);
+    if (isNaN(assessmentId)) {
+      return NextResponse.json({ error: "Invalid id" }, { status: 400 });
+    }
+
+    const existing = db
+      .select()
+      .from(assessments)
+      .where(eq(assessments.id, assessmentId))
+      .get();
+
+    if (!existing) {
+      return NextResponse.json({ error: "Assessment not found" }, { status: 404 });
+    }
+
+    db.delete(assessments).where(eq(assessments.id, assessmentId)).run();
+
+    log({
+      level: "warn",
+      category: "assessment",
+      action: "assessment.deleted",
+      userId: session.userId,
+      username: session.username,
+      resourceType: "assessment",
+      resourceId: assessmentId,
+      metadata: { customerId: existing.customerId, templateId: existing.templateId },
+    });
+
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    if (process.env.NODE_ENV === "development") console.error(err);
+    return NextResponse.json({ error: "Failed to delete assessment" }, { status: 500 });
+  }
+}
+
 // PATCH /api/assessments/[id] — submit answers, calculate score, mark complete
 export async function PATCH(
   req: NextRequest,

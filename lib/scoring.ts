@@ -1,11 +1,11 @@
-export type Answer = "Yes" | "No" | "Maybe";
+export type Answer = "Yes" | "No" | "Maybe" | "N/A";
 
 export interface Question {
   id: string;
   category: string;
   text: string;
   weight: number; // 1–10; higher = more impact on score
-  scores: Record<Answer, number>; // e.g. { Yes: 100, No: 0, Maybe: 50 }
+  scores: Record<"Yes" | "No" | "Maybe", number>; // N/A is excluded from scoring
 }
 
 export interface AssessmentResult {
@@ -23,6 +23,9 @@ export function calculateScore(
   const categoryScores: Record<string, { score: number; max: number }> = {};
 
   results.forEach((r) => {
+    // N/A answers are excluded from score calculations entirely
+    if (r.answer === "N/A") return;
+
     const q = questions.find((q) => q.id === r.questionId);
     if (!q) return;
     const compliance = q.scores[r.answer] ?? 50;

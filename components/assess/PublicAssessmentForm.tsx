@@ -29,6 +29,7 @@ const ANSWER_OPTIONS: { value: Answer; label: string; selectedCls: string }[] = 
   { value: "Yes", label: "Yes", selectedCls: "border-[#10b981] bg-[#10b981] text-white" },
   { value: "No", label: "No", selectedCls: "border-[#ef4444] bg-[#ef4444] text-white" },
   { value: "Maybe", label: "Maybe / Partial", selectedCls: "border-[#f59e0b] bg-[#f59e0b] text-white" },
+  { value: "N/A", label: "N/A", selectedCls: "border-neutral-400 bg-neutral-400 text-white" },
 ];
 
 function groupByCategory(qs: PublicQuestion[]): [string, PublicQuestion[]][] {

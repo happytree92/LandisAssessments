@@ -28,24 +28,26 @@ function groupByCategory(questions: Question[]): [string, Question[]][] {
   return Array.from(map.entries());
 }
 
-const ANSWER_OPTIONS: { value: Answer; label: string; color: string }[] = [
+const ANSWER_OPTIONS: { value: Answer; label: string; selectedCls: string }[] = [
   {
     value: "Yes",
     label: "Yes",
-    color:
-      "border-[#10b981] bg-[#10b981] text-white data-[selected=false]:bg-white data-[selected=false]:text-[#10b981]",
+    selectedCls: "border-[#10b981] bg-[#10b981] text-white",
   },
   {
     value: "No",
     label: "No",
-    color:
-      "border-[#ef4444] bg-[#ef4444] text-white data-[selected=false]:bg-white data-[selected=false]:text-[#ef4444]",
+    selectedCls: "border-[#ef4444] bg-[#ef4444] text-white",
   },
   {
     value: "Maybe",
     label: "Maybe / Partial",
-    color:
-      "border-[#f59e0b] bg-[#f59e0b] text-white data-[selected=false]:bg-white data-[selected=false]:text-[#f59e0b]",
+    selectedCls: "border-[#f59e0b] bg-[#f59e0b] text-white",
+  },
+  {
+    value: "N/A",
+    label: "N/A",
+    selectedCls: "border-neutral-400 bg-neutral-400 text-white",
   },
 ];
 
@@ -185,7 +187,7 @@ export function AssessmentConductForm({
                       </div>
                     </div>
 
-                    {/* Yes / No / Maybe buttons */}
+                    {/* Answer buttons */}
                     <div className="flex gap-2 flex-wrap mb-3">
                       {ANSWER_OPTIONS.map((opt) => {
                         const selected = state.answer === opt.value;
@@ -196,8 +198,8 @@ export function AssessmentConductForm({
                             onClick={() => setAnswer(q.id, opt.value)}
                             className={`px-4 py-1.5 rounded-full border-2 text-sm font-medium transition-all ${
                               selected
-                                ? opt.color.split(" data-[selected=false]:")[0]
-                                : `border-neutral-200 bg-white text-neutral-600 hover:border-neutral-400`
+                                ? opt.selectedCls
+                                : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-400"
                             }`}
                           >
                             {opt.label}

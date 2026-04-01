@@ -1,13 +1,16 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { assessments, customers, users, templates } from "@/lib/db/schema";
 import { getQuestionsForTemplate } from "@/lib/questions-db";
 import { buildSummary } from "@/lib/summary";
+import { verifyToken } from "@/lib/auth";
 import { ScoreCard } from "@/components/assessments/ScoreCard";
 import { CategoryBreakdown } from "@/components/assessments/CategoryBreakdown";
 import { ExportPDFButton } from "@/components/assessments/ExportPDFButton";
+import { DeleteAssessmentButton } from "@/components/assessments/DeleteAssessmentButton";
 import type { Question, Answer } from "@/lib/scoring";
 
 type Props = { params: Promise<{ id: string }> };
@@ -26,12 +29,19 @@ function answerBadge(answer: Answer) {
     Yes: "bg-[#10b981] text-white",
     No: "bg-[#ef4444] text-white",
     Maybe: "bg-[#f59e0b] text-white",
+    "N/A": "bg-neutral-300 text-neutral-700",
+  };
+  const labels: Record<Answer, string> = {
+    Yes: "Yes",
+    No: "No",
+    Maybe: "Maybe / Partial",
+    "N/A": "N/A",
   };
   return (
     <span
       className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold ${styles[answer]}`}
     >
-      {answer === "Maybe" ? "Maybe / Partial" : answer}
+      {labels[answer]}
     </span>
   );
 }
@@ -41,6 +51,11 @@ export default async function AssessmentResultsPage({ params }: Props) {
   const { id } = await params;
   const assessmentId = parseInt(id, 10);
   if (isNaN(assessmentId)) notFound();
+
+  const cookieStore = await cookies();
+  const sessionCookie = cookieStore.get("session")?.value;
+  const session = sessionCookie ? await verifyToken(sessionCookie).catch(() => null) : null;
+  const isAdmin = session?.role === "admin";
 
   const assessment = db
     .select()
@@ -71,8 +86,7 @@ export default async function AssessmentResultsPage({ params }: Props) {
   const templateLabel = templateRecord?.name ?? assessment.templateId;
 
   // Parse JSON fields
-  const answersMap: Record<string, { answer: Answer; notes?: string }> =
-    JSON.parse(assessment.answers || "{}");
+  const answersMap = JSON.parse(assessment.answers || "{}") as Record<string, { answer: Answer; notes?: string }>;
   const categoryScores: Record<string, number> = JSON.parse(
     assessment.categoryScores || "{}"
   );
@@ -122,10 +136,18 @@ export default async function AssessmentResultsPage({ params }: Props) {
             {formatDate(assessment.completedAt)}
           </p>
         </div>
-        <ExportPDFButton
-          assessmentId={assessmentId}
-          filename={`assessment-${(customer?.name ?? "export").replace(/[^a-zA-Z0-9-]/g, "_")}-${assessment.completedAt ? new Date(assessment.completedAt * 1000).toISOString().slice(0, 10) : "draft"}.pdf`}
-        />
+        <div className="flex items-center gap-2">
+          <ExportPDFButton
+            assessmentId={assessmentId}
+            filename={`assessment-${(customer?.name ?? "export").replace(/[^a-zA-Z0-9-]/g, "_")}-${assessment.completedAt ? new Date(assessment.completedAt * 1000).toISOString().slice(0, 10) : "draft"}.pdf`}
+          />
+          {isAdmin && (
+            <DeleteAssessmentButton
+              assessmentId={assessmentId}
+              customerId={assessment.customerId}
+            />
+          )}
+        </div>
       </div>
 
       {/* Score card */}
