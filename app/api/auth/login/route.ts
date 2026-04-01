@@ -28,7 +28,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const passwordHash = user?.passwordHash ?? "$2b$12$invalidhashforinvaliduser000000";
     const valid = await bcrypt.compare(password, passwordHash);
 
-    if (!user || !valid) {
+    if (!user || !valid || user.isActive === 0) {
       return NextResponse.json(
         { error: "Invalid username or password" },
         { status: 401 }
@@ -39,6 +39,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       userId: user.id,
       username: user.username,
       displayName: user.displayName,
+      role: user.role ?? "staff",
     });
 
     const response = NextResponse.json({
@@ -46,6 +47,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         id: user.id,
         username: user.username,
         displayName: user.displayName,
+        role: user.role ?? "staff",
       },
     });
 

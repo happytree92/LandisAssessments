@@ -29,6 +29,13 @@ async function seedUsers(
             "Please update it immediately."
         );
       }
+      // Ensure the default admin user has role = "admin" (handles existing DBs)
+      if (adminUser.role !== "admin") {
+        db.update(schema.users)
+          .set({ role: "admin" })
+          .where(eq(schema.users.id, adminUser.id))
+          .run();
+      }
     }
     return;
   }
@@ -39,6 +46,8 @@ async function seedUsers(
       username: DEFAULT_USERNAME,
       passwordHash,
       displayName: "Admin",
+      role: "admin",
+      isActive: 1,
       createdAt: Math.floor(Date.now() / 1000),
     })
     .onConflictDoNothing()

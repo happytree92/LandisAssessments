@@ -6,6 +6,8 @@ export const users = sqliteTable("users", {
   username: text("username").unique().notNull(),
   passwordHash: text("password_hash").notNull(),
   displayName: text("display_name").notNull(),
+  role: text("role").notNull().default("staff"),    // "admin" | "staff"
+  isActive: integer("is_active").default(1),
   createdAt: integer("created_at"), // unix timestamp
 });
 
@@ -64,8 +66,17 @@ export const questions = sqliteTable("questions", {
   createdAt: integer("created_at"),
 });
 
+// App-level key/value settings (branding colors, etc.)
+export const settings = sqliteTable("settings", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  key: text("key").unique().notNull(),
+  value: text("value").notNull(),
+  updatedAt: integer("updated_at"),
+});
+
 export type User = typeof users.$inferSelect;
 export type Customer = typeof customers.$inferSelect;
 export type Assessment = typeof assessments.$inferSelect;
 export type Template = typeof templates.$inferSelect;
 export type DbQuestion = typeof questions.$inferSelect;
+export type Setting = typeof settings.$inferSelect;

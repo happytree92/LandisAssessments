@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { verifyToken } from "@/lib/auth";
-import { LogoutButton } from "./LogoutButton";
+import { UserMenu } from "./UserMenu";
 
 export async function TopNav() {
   const cookieStore = await cookies();
@@ -9,9 +9,11 @@ export async function TopNav() {
   if (!token) return null;
 
   let displayName = "";
+  let role = "staff";
   try {
     const payload = await verifyToken(token);
     displayName = payload.displayName;
+    role = payload.role;
   } catch {
     return null;
   }
@@ -41,19 +43,18 @@ export async function TopNav() {
           >
             Customers
           </Link>
-          <Link
-            href="/admin/questions"
-            className="text-sm font-medium text-[#334155] hover:text-[#1e40af] transition-colors"
-          >
-            Admin
-          </Link>
+          {role === "admin" && (
+            <Link
+              href="/admin"
+              className="text-sm font-medium text-[#334155] hover:text-[#1e40af] transition-colors"
+            >
+              Admin
+            </Link>
+          )}
         </nav>
 
-        {/* User + logout */}
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-[#94a3b8] hidden sm:block">{displayName}</span>
-          <LogoutButton />
-        </div>
+        {/* User dropdown */}
+        <UserMenu displayName={displayName} />
       </div>
     </header>
   );

@@ -4,6 +4,7 @@ export interface SessionPayload {
   userId: number;
   username: string;
   displayName: string;
+  role: string; // "admin" | "staff"
 }
 
 // JWT secret is required — throw on startup if missing
@@ -25,5 +26,8 @@ export async function signToken(payload: SessionPayload): Promise<string> {
 
 export async function verifyToken(token: string): Promise<SessionPayload> {
   const { payload } = await jwtVerify(token, getSecret());
-  return payload as unknown as SessionPayload;
+  const p = payload as unknown as SessionPayload;
+  // Tokens issued before role was added — treat as staff
+  if (!p.role) p.role = "staff";
+  return p;
 }

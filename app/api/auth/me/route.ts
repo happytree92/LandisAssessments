@@ -16,6 +16,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         userId: payload.userId,
         username: payload.username,
         displayName: payload.displayName,
+        role: payload.role,
       },
     });
   } catch {

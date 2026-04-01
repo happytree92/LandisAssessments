@@ -24,7 +24,14 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   try {
     // jose works in Edge runtime — no Node.js APIs needed here
     const secret = new TextEncoder().encode(process.env.JWT_SECRET ?? "");
-    await jwtVerify(token, secret);
+    const { payload } = await jwtVerify(token, secret);
+
+    // Admin routes require role = "admin"
+    const role = (payload as { role?: string }).role ?? "staff";
+    if (pathname.startsWith("/admin") && role !== "admin") {
+      return NextResponse.redirect(new URL("/403", req.url));
+    }
+
     return NextResponse.next();
   } catch {
     // Invalid or expired token — clear cookie and redirect

@@ -5,6 +5,15 @@ import fs from "fs";
 import * as schema from "./schema";
 import { runSeed } from "./seed";
 
+// Safely add a column to an existing table — no-op if it already exists
+function addColumnIfMissing(sqlite: { exec: (sql: string) => void }, table: string, column: string, definition: string) {
+  try {
+    sqlite.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  } catch {
+    // Column already exists — ignore
+  }
+}
+
 type DB = BetterSQLite3Database<typeof schema>;
 
 // Prevent multiple DB connections during Next.js dev hot-reload
@@ -89,7 +98,18 @@ function createDb(): DB {
       is_active INTEGER DEFAULT 1,
       created_at INTEGER
     );
+
+    CREATE TABLE IF NOT EXISTS settings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      key TEXT UNIQUE NOT NULL,
+      value TEXT NOT NULL,
+      updated_at INTEGER
+    );
   `);
+
+  // Schema migrations — add new columns to existing tables without dropping data
+  addColumnIfMissing(sqlite, "users", "role", "TEXT NOT NULL DEFAULT 'staff'");
+  addColumnIfMissing(sqlite, "users", "is_active", "INTEGER DEFAULT 1");
 
   const db = drizzle(sqlite, { schema });
 
