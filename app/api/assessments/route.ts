@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { assessments, customers } from "@/lib/db/schema";
+import { assessments, customers, templates } from "@/lib/db/schema";
 import { verifyToken } from "@/lib/auth";
 
 // POST /api/assessments — create a draft assessment (no answers yet)
@@ -27,7 +27,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    if (templateId !== "security" && templateId !== "onboarding") {
+    // Validate template exists in DB
+    const template = db
+      .select()
+      .from(templates)
+      .where(eq(templates.slug, templateId))
+      .get();
+
+    if (!template) {
       return NextResponse.json(
         { error: 'templateId must be "security" or "onboarding"' },
         { status: 400 }

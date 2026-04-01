@@ -66,6 +66,29 @@ function createDb(): DB {
       completed_at INTEGER,
       created_at INTEGER
     );
+
+    CREATE TABLE IF NOT EXISTS templates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      slug TEXT UNIQUE NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT,
+      is_active INTEGER DEFAULT 1,
+      created_at INTEGER
+    );
+
+    CREATE TABLE IF NOT EXISTS questions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      template_id INTEGER NOT NULL REFERENCES templates(id),
+      category TEXT NOT NULL,
+      text TEXT NOT NULL,
+      weight INTEGER NOT NULL,
+      yes_score INTEGER NOT NULL,
+      no_score INTEGER NOT NULL,
+      maybe_score INTEGER NOT NULL,
+      sort_order INTEGER DEFAULT 0,
+      is_active INTEGER DEFAULT 1,
+      created_at INTEGER
+    );
   `);
 
   const db = drizzle(sqlite, { schema });

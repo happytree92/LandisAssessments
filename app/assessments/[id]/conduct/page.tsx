@@ -3,7 +3,7 @@ import Link from "next/link";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { assessments, customers } from "@/lib/db/schema";
-import { securityQuestions, onboardingQuestions } from "@/lib/questions";
+import { getQuestionsForTemplate } from "@/lib/questions-db";
 import { AssessmentConductForm } from "@/components/assessments/AssessmentConductForm";
 
 type Props = { params: Promise<{ id: string }> };
@@ -31,8 +31,7 @@ export default async function ConductPage({ params }: Props) {
     .where(eq(customers.id, assessment.customerId))
     .get();
 
-  const questions =
-    assessment.templateId === "security" ? securityQuestions : onboardingQuestions;
+  const questions = getQuestionsForTemplate(assessment.templateId);
 
   const templateLabel =
     assessment.templateId === "security"

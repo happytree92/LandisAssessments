@@ -1,0 +1,39 @@
+template,category,question,weight,yes_score,no_score,maybe_score
+security,Access Control,Does the customer use MFA on all admin accounts?,10,100,0,30
+security,Access Control,Is MFA enabled for all Microsoft 365 / cloud service logins?,10,100,0,30
+security,Access Control,Are privileged accounts (domain admin, etc.) separate from daily-use accounts?,8,100,0,30
+security,Access Control,Is there a formal offboarding process to revoke access when employees leave?,9,100,0,30
+security,Access Control,Are passwords managed with a password manager (e.g. no shared spreadsheets)?,8,100,0,30
+security,Email Security,Is SPF configured on the domain?,7,100,0,50
+security,Email Security,Is DKIM configured and passing?,7,100,0,50
+security,Email Security,"Is DMARC configured with at least a ""p=quarantine"" policy?",8,100,0,30
+security,Email Security,Is anti-phishing / safe links protection enabled in M365 Defender?,8,100,0,30
+security,Email Security,Are users trained to identify phishing attempts?,6,100,0,50
+security,Backup & Recovery,Are all critical systems backed up daily?,10,100,0,30
+security,Backup & Recovery,Are backups stored offsite or in cloud (not just local)?,10,100,0,30
+security,Backup & Recovery,Has a backup restore test been performed in the last 6 months?,9,100,0,30
+security,Backup & Recovery,Is Microsoft 365 data (email SharePoint OneDrive) backed up by a third-party tool?,9,100,0,30
+security,Endpoint Security,Is endpoint detection and response (EDR) software deployed on all machines?,9,100,0,30
+security,Endpoint Security,Is application whitelisting or allowlisting in use (e.g. ThreatLocker)?,8,100,0,30
+security,Endpoint Security,Are OS and software updates applied within 30 days of release?,7,100,0,50
+security,Endpoint Security,Is BitLocker or equivalent full-disk encryption enabled on laptops?,8,100,0,30
+security,Network Security,Is the firewall actively managed and reviewed?,7,100,0,50
+security,Network Security,Is there network segmentation between corporate and guest Wi-Fi?,6,100,0,50
+security,Network Security,Is remote access via VPN or a Zero Trust solution (not open RDP)?,9,100,0,30
+security,Incident Response,Does the customer have a documented incident response plan?,7,100,0,50
+security,Incident Response,Do staff know who to call if a breach or ransomware event occurs?,8,100,0,30
+security,Incident Response,Has a tabletop or incident response drill been conducted in the last year?,5,100,0,50
+security,Compliance & Governance,Is there a written acceptable use policy for IT systems?,5,100,0,50
+security,Compliance & Governance,Is security awareness training conducted at least annually?,6,100,0,50
+onboarding,M365 Setup,Has the M365 tenant been configured by Landis IT (not self-provisioned)?,8,100,0,30
+onboarding,M365 Setup,Are all licensed users assigned the correct M365 plan?,7,100,0,50
+onboarding,M365 Setup,Is Conditional Access configured in Entra ID (Azure AD)?,9,100,0,30
+onboarding,Documentation,Has a full network and user inventory been documented?,8,100,0,30
+onboarding,Documentation,Are all passwords and credentials stored securely in the Landis IT password manager?,9,100,0,30
+onboarding,Documentation,Is the customer's IT environment documented in the PSA/documentation system?,7,100,0,50
+onboarding,Remote Support,Is the remote monitoring and management (RMM) agent installed on all endpoints?,9,100,0,30
+onboarding,Remote Support,Is the customer aware of the support ticketing process and SLAs?,7,100,0,50
+onboarding,Security Baseline,Has the initial security assessment been completed?,10,100,0,30
+onboarding,Security Baseline,Is EDR deployed on all devices as part of onboarding?,9,100,0,30
+onboarding,Security Baseline,Have cloud backups been configured and tested?,9,100,0,30
+onboarding,Business Continuity,Has a business continuity discussion been had with the customer's leadership?,7,100,0,50

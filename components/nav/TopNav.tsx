@@ -41,6 +41,12 @@ export async function TopNav() {
           >
             Customers
           </Link>
+          <Link
+            href="/admin/questions"
+            className="text-sm font-medium text-[#334155] hover:text-[#1e40af] transition-colors"
+          >
+            Admin
+          </Link>
         </nav>
 
         {/* User + logout */}

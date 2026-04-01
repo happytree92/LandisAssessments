@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { assessments, customers, users } from "@/lib/db/schema";
-import { securityQuestions, onboardingQuestions } from "@/lib/questions";
+import { getQuestionsForTemplate } from "@/lib/questions-db";
 import { ScoreCard } from "@/components/assessments/ScoreCard";
 import { CategoryBreakdown } from "@/components/assessments/CategoryBreakdown";
 import type { Question, Answer } from "@/lib/scoring";
@@ -102,8 +102,7 @@ export default async function AssessmentResultsPage({ params }: Props) {
     .where(eq(users.id, assessment.conductedBy))
     .get();
 
-  const questions =
-    assessment.templateId === "security" ? securityQuestions : onboardingQuestions;
+  const questions = getQuestionsForTemplate(assessment.templateId);
 
   const templateLabel =
     assessment.templateId === "security"

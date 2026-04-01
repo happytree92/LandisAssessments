@@ -37,6 +37,35 @@ export const assessments = sqliteTable("assessments", {
   createdAt: integer("created_at"),
 });
 
+// Assessment templates (security / onboarding)
+export const templates = sqliteTable("templates", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  slug: text("slug").unique().notNull(),       // "security" | "onboarding"
+  name: text("name").notNull(),                // "Security Assessment"
+  description: text("description"),
+  isActive: integer("is_active").default(1),
+  createdAt: integer("created_at"),
+});
+
+// Individual questions belonging to a template
+export const questions = sqliteTable("questions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  templateId: integer("template_id")
+    .notNull()
+    .references(() => templates.id),
+  category: text("category").notNull(),
+  text: text("text").notNull(),
+  weight: integer("weight").notNull(),         // 1–10
+  yesScore: integer("yes_score").notNull(),    // 0–100
+  noScore: integer("no_score").notNull(),      // 0–100
+  maybeScore: integer("maybe_score").notNull(), // 0–100
+  sortOrder: integer("sort_order").default(0),
+  isActive: integer("is_active").default(1),
+  createdAt: integer("created_at"),
+});
+
 export type User = typeof users.$inferSelect;
 export type Customer = typeof customers.$inferSelect;
 export type Assessment = typeof assessments.$inferSelect;
+export type Template = typeof templates.$inferSelect;
+export type DbQuestion = typeof questions.$inferSelect;

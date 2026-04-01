@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { assessments, customers, users } from "@/lib/db/schema";
 import { calculateScore } from "@/lib/scoring";
-import { securityQuestions, onboardingQuestions } from "@/lib/questions";
+import { getQuestionsForTemplate } from "@/lib/questions-db";
 import type { AssessmentResult } from "@/lib/scoring";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -84,9 +84,8 @@ export async function PATCH(
       return NextResponse.json({ error: "answers object is required" }, { status: 400 });
     }
 
-    // Choose the correct question bank for this template
-    const questions =
-      existing.templateId === "security" ? securityQuestions : onboardingQuestions;
+    // Fetch active questions for this template from the DB
+    const questions = getQuestionsForTemplate(existing.templateId);
 
     // Validate all questions are answered
     const unanswered = questions.filter((q) => !answers[q.id]?.answer);
