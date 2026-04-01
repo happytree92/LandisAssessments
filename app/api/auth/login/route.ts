@@ -59,9 +59,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     return response;
   } catch (err) {
-    if (process.env.NODE_ENV === "development") {
-      console.error("Login error:", err);
-    }
+    console.error("[login] Unexpected error:", err);
     return NextResponse.json(
       { error: "An unexpected error occurred" },
       { status: 500 }

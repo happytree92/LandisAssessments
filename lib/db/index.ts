@@ -72,7 +72,7 @@ function createDb(): DB {
 
   // Seed default admin if users table is empty
   runSeed(db).catch((err) => {
-    console.error("DB seed error:", err);
+    console.error("[db] Seed error:", err);
   });
 
   return db;
