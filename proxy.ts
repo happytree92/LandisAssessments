@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 
 // Paths that don't require authentication
-const PUBLIC_PATHS = ["/login", "/api/auth/login"];
+// /assess/[token] — customer self-assessment (token IS the auth)
+// /assess/complete — static thank-you page
+// /api/assess/ — public token validation and submission endpoints
+const PUBLIC_PATHS = ["/login", "/api/auth/login", "/assess/", "/api/assess/"];
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p));

@@ -4,11 +4,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { eq, desc } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { customers, assessments, users } from "@/lib/db/schema";
+import { customers, assessments, users, templates, assessmentTokens } from "@/lib/db/schema";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { DeleteCustomerButton } from "@/components/customers/DeleteCustomerButton";
 import { Trendline } from "@/components/assessments/Trendline";
+import { ShareAssessmentModal } from "@/components/customers/ShareAssessmentModal";
 
 function formatDate(unix: number | null): string {
   if (!unix) return "—";
@@ -51,6 +52,7 @@ export default async function CustomerDetailPage({ params }: Props) {
       completedAt: assessments.completedAt,
       createdAt: assessments.createdAt,
       conductorName: users.displayName,
+      source: assessments.source,
     })
     .from(assessments)
     .leftJoin(users, eq(assessments.conductedBy, users.id))
@@ -59,6 +61,30 @@ export default async function CustomerDetailPage({ params }: Props) {
     .all();
 
   const completedHistory = history.filter((a) => a.completedAt !== null);
+
+  // Fetch active templates for the Share Assessment modal
+  const activeTemplates = db
+    .select({ id: templates.id, slug: templates.slug, name: templates.name })
+    .from(templates)
+    .all()
+    .filter((t) => t);
+
+  // Fetch existing tokens for this customer to show in the modal
+  const nowSec = Math.floor(Date.now() / 1000);
+  const rawTokens = db
+    .select()
+    .from(assessmentTokens)
+    .where(eq(assessmentTokens.customerId, customerId))
+    .all();
+
+  const tokenList = rawTokens.map((t) => ({
+    ...t,
+    status: t.usedAt
+      ? "completed"
+      : t.isActive === 0 || t.expiresAt < nowSec
+      ? "expired"
+      : "pending",
+  }));
 
   // Build trendline data from completed assessments, oldest first
   const trendData = [...completedHistory]
@@ -94,12 +120,17 @@ export default async function CustomerDetailPage({ params }: Props) {
             <p>Added {formatDate(customer.createdAt)}</p>
           </div>
         </div>
-        <div className="flex gap-2 shrink-0">
+        <div className="flex gap-2 shrink-0 flex-wrap justify-end">
           <Link href={`/assessments/new?customerId=${customer.id}`}>
             <Button className="bg-[#1e40af] hover:bg-[#1e3a8a] text-white">
               New Assessment
             </Button>
           </Link>
+          <ShareAssessmentModal
+            customerId={customer.id}
+            templates={activeTemplates}
+            initialTokens={tokenList}
+          />
           <Link href={`/customers/${customer.id}/edit`}>
             <Button variant="outline">Edit</Button>
           </Link>
@@ -165,6 +196,7 @@ export default async function CustomerDetailPage({ params }: Props) {
                     <th className="text-left pb-2 font-medium">Date</th>
                     <th className="text-left pb-2 font-medium">Template</th>
                     <th className="text-left pb-2 font-medium">Conducted By</th>
+                    <th className="text-left pb-2 font-medium">Source</th>
                     <th className="text-left pb-2 font-medium">Score</th>
                     <th className="text-right pb-2 font-medium"></th>
                   </tr>
@@ -175,6 +207,17 @@ export default async function CustomerDetailPage({ params }: Props) {
                       <td className="py-3 text-[#334155]">{formatDate(a.completedAt ?? a.createdAt)}</td>
                       <td className="py-3 text-[#334155]">{templateLabel(a.templateId)}</td>
                       <td className="py-3 text-[#334155]">{a.conductorName ?? "—"}</td>
+                      <td className="py-3">
+                        {a.source === "customer_link" ? (
+                          <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-purple-50 text-purple-700">
+                            Customer
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-neutral-100 text-neutral-500">
+                            Staff
+                          </span>
+                        )}
+                      </td>
                       <td className="py-3">
                         {a.completedAt ? (
                           <ScoreBadge score={a.overallScore} />

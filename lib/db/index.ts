@@ -105,13 +105,37 @@ function createDb(): DB {
       value TEXT NOT NULL,
       updated_at INTEGER
     );
+
+    CREATE TABLE IF NOT EXISTS assessment_tokens (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      token TEXT UNIQUE NOT NULL,
+      customer_id INTEGER NOT NULL REFERENCES customers(id),
+      template_id TEXT NOT NULL,
+      created_by INTEGER NOT NULL REFERENCES users(id),
+      expires_at INTEGER NOT NULL,
+      used_at INTEGER,
+      submitted_from_ip TEXT,
+      is_active INTEGER DEFAULT 1,
+      created_at INTEGER
+    );
   `);
 
   // Schema migrations — add new columns to existing tables without dropping data
   addColumnIfMissing(sqlite, "users", "role", "TEXT NOT NULL DEFAULT 'staff'");
   addColumnIfMissing(sqlite, "users", "is_active", "INTEGER DEFAULT 1");
+  addColumnIfMissing(sqlite, "assessments", "source", "TEXT DEFAULT 'staff'");
 
   const db = drizzle(sqlite, { schema });
+
+  // Expire tokens where expiresAt < now and isActive = 1
+  try {
+    const nowSec = Math.floor(Date.now() / 1000);
+    sqlite.exec(
+      `UPDATE assessment_tokens SET is_active = 0 WHERE expires_at < ${nowSec} AND is_active = 1`
+    );
+  } catch {
+    // Table may not exist on very first run before CREATE above runs — safe to ignore
+  }
 
   // Seed default admin if users table is empty
   runSeed(db).catch((err) => {

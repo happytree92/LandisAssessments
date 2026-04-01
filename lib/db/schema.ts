@@ -35,6 +35,7 @@ export const assessments = sqliteTable("assessments", {
   answers: text("answers").notNull(), // JSON: { questionId: { answer, notes? } }
   overallScore: integer("overall_score").notNull(), // 0–100
   categoryScores: text("category_scores").notNull(), // JSON: { categoryName: score }
+  source: text("source").default("staff"),           // "staff" | "customer_link"
   completedAt: integer("completed_at"),
   createdAt: integer("created_at"),
 });
@@ -74,9 +75,24 @@ export const settings = sqliteTable("settings", {
   updatedAt: integer("updated_at"),
 });
 
+// One-time shareable links for customer self-assessments
+export const assessmentTokens = sqliteTable("assessment_tokens", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  token: text("token").unique().notNull(),           // crypto.randomUUID()
+  customerId: integer("customer_id").notNull().references(() => customers.id),
+  templateId: text("template_id").notNull(),         // slug: "security" | "onboarding"
+  createdBy: integer("created_by").notNull().references(() => users.id),
+  expiresAt: integer("expires_at").notNull(),        // unix timestamp
+  usedAt: integer("used_at"),                        // null until submitted
+  submittedFromIp: text("submitted_from_ip"),
+  isActive: integer("is_active").default(1),
+  createdAt: integer("created_at"),
+});
+
 export type User = typeof users.$inferSelect;
 export type Customer = typeof customers.$inferSelect;
 export type Assessment = typeof assessments.$inferSelect;
 export type Template = typeof templates.$inferSelect;
 export type DbQuestion = typeof questions.$inferSelect;
 export type Setting = typeof settings.$inferSelect;
+export type AssessmentToken = typeof assessmentTokens.$inferSelect;
