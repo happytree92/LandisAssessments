@@ -3,6 +3,7 @@ import {
   Page,
   View,
   Text,
+  Image,
   StyleSheet,
 } from "@react-pdf/renderer";
 import type { Answer } from "@/lib/scoring";
@@ -26,6 +27,8 @@ export interface AssessmentReportProps {
   summary: string;
   questions: PdfQuestion[];
   answersMap: Record<string, { answer: Answer; notes?: string }>;
+  orgName: string;
+  orgLogo: string | null; // base64 data URI or null
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -78,6 +81,8 @@ const s = StyleSheet.create({
 
   // Header
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
+  headerLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
+  orgLogo: { width: 32, height: 32, objectFit: "contain" },
   wordmark: { fontSize: 16, fontFamily: "Helvetica-Bold", color: PRIMARY, letterSpacing: 0.5 },
   wordmarkSub: { fontSize: 8, color: NEUTRAL_400, marginTop: 2 },
   headerRight: { alignItems: "flex-end" },
@@ -201,6 +206,8 @@ export function AssessmentReport({
   summary,
   questions,
   answersMap,
+  orgName,
+  orgLogo,
 }: AssessmentReportProps) {
   // Group questions by category
   const byCategory = new Map<string, PdfQuestion[]>();
@@ -212,14 +219,19 @@ export function AssessmentReport({
   const color = scoreColor(overallScore);
 
   return (
-    <Document title={`Assessment — ${customerName}`} author="Landis IT">
+    <Document title={`Assessment — ${customerName}`} author={orgName}>
       <Page size="A4" style={s.page}>
 
         {/* ── Header ── */}
         <View style={s.header}>
-          <View>
-            <Text style={s.wordmark}>LANDIS ASSESSMENTS</Text>
-            <Text style={s.wordmarkSub}>Prepared by Landis IT</Text>
+          <View style={s.headerLeft}>
+            {orgLogo && !orgLogo.startsWith("data:image/svg") && (
+              <Image src={orgLogo} style={s.orgLogo} />
+            )}
+            <View>
+              <Text style={s.wordmark}>{orgName.toUpperCase()}</Text>
+              <Text style={s.wordmarkSub}>Prepared by {orgName}</Text>
+            </View>
           </View>
           <View style={s.headerRight}>
             <Text style={s.headerDate}>{formatDate(completedAt)}</Text>
@@ -313,7 +325,7 @@ export function AssessmentReport({
           fixed
           style={s.footer}
           render={({ pageNumber, totalPages }) =>
-            `Prepared by Landis IT  ·  Page ${pageNumber} of ${totalPages}`
+            `Prepared by ${orgName}  ·  Page ${pageNumber} of ${totalPages}`
           }
         />
       </Page>

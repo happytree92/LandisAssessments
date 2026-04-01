@@ -29,7 +29,6 @@ export const assessments = sqliteTable("assessments", {
     .notNull()
     .references(() => customers.id),
   conductedBy: integer("conducted_by")
-    .notNull()
     .references(() => users.id),
   templateId: text("template_id").notNull(), // "security" | "onboarding"
   answers: text("answers").notNull(), // JSON: { questionId: { answer, notes? } }
@@ -81,7 +80,7 @@ export const assessmentTokens = sqliteTable("assessment_tokens", {
   token: text("token").unique().notNull(),           // crypto.randomUUID()
   customerId: integer("customer_id").notNull().references(() => customers.id),
   templateId: text("template_id").notNull(),         // slug: "security" | "onboarding"
-  createdBy: integer("created_by").notNull().references(() => users.id),
+  createdBy: integer("created_by").references(() => users.id),
   expiresAt: integer("expires_at").notNull(),        // unix timestamp
   usedAt: integer("used_at"),                        // null until submitted
   submittedFromIp: text("submitted_from_ip"),

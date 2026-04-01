@@ -1,5 +1,7 @@
 import { cookies } from "next/headers";
 import Link from "next/link";
+import { db } from "@/lib/db";
+import { settings } from "@/lib/db/schema";
 import { verifyToken } from "@/lib/auth";
 import { UserMenu } from "./UserMenu";
 
@@ -18,15 +20,30 @@ export async function TopNav() {
     return null;
   }
 
+  const rows = db.select().from(settings).all();
+  const settingsMap = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+  const orgName = settingsMap["org_name"]?.trim() || "Landis Assessments";
+  const orgLogo = settingsMap["org_logo"] || null;
+
   return (
     <header className="bg-white border-b border-neutral-200 shadow-sm sticky top-0 z-20">
       <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
-        {/* Logo */}
+        {/* Logo / wordmark */}
         <Link
           href="/dashboard"
-          className="text-base font-bold text-[#1e40af] tracking-tight hover:text-[#1e3a8a] transition-colors"
+          className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
         >
-          Landis Assessments
+          {orgLogo && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={orgLogo}
+              alt={orgName}
+              className="h-7 max-w-[120px] object-contain"
+            />
+          )}
+          <span className="text-base font-bold text-[#1e40af] tracking-tight">
+            {orgName}
+          </span>
         </Link>
 
         {/* Nav links */}

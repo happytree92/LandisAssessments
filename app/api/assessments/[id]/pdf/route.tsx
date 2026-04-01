@@ -4,7 +4,7 @@ import { renderToBuffer } from "@react-pdf/renderer";
 import type { DocumentProps } from "@react-pdf/renderer";
 import React from "react";
 import { db } from "@/lib/db";
-import { assessments, customers, users, templates } from "@/lib/db/schema";
+import { assessments, customers, users, templates, settings } from "@/lib/db/schema";
 import { getQuestionsForTemplate } from "@/lib/questions-db";
 import { buildSummary } from "@/lib/summary";
 import { AssessmentReport } from "@/components/pdf/AssessmentReport";
@@ -81,6 +81,11 @@ export async function GET(
     const conductorName = conductor?.displayName ?? "Unknown";
     const templateName = templateRecord?.name ?? assessment.templateId;
 
+    const settingsRows = db.select().from(settings).all();
+    const settingsMap = Object.fromEntries(settingsRows.map((r) => [r.key, r.value]));
+    const orgName = settingsMap["org_name"]?.trim() || "Landis Assessments";
+    const orgLogo = settingsMap["org_logo"] || null;
+
     const buffer = await renderToBuffer(
       React.createElement(AssessmentReport, {
         customerName,
@@ -92,6 +97,8 @@ export async function GET(
         summary,
         questions,
         answersMap,
+        orgName,
+        orgLogo,
       }) as React.ReactElement<DocumentProps>
     );
 

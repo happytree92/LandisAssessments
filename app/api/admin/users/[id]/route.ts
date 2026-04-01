@@ -1,12 +1,90 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { eq } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { users } from "@/lib/db/schema";
+import { users, assessments, assessmentTokens } from "@/lib/db/schema";
 import { verifyToken } from "@/lib/auth";
 import { log } from "@/lib/logger";
 
 type RouteContext = { params: Promise<{ id: string }> };
+
+// DELETE /api/admin/users/[id] — admin only, hard-delete a user and nullify their assessments
+export async function DELETE(
+  req: NextRequest,
+  { params }: RouteContext
+): Promise<NextResponse> {
+  try {
+    const sessionCookie = req.cookies.get("session")?.value;
+    if (!sessionCookie) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const session = await verifyToken(sessionCookie);
+    if (session.role !== "admin") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const { id } = await params;
+    const userId = parseInt(id, 10);
+    if (isNaN(userId)) {
+      return NextResponse.json({ error: "Invalid id" }, { status: 400 });
+    }
+
+    // Prevent self-deletion
+    if (session.userId === userId) {
+      return NextResponse.json({ error: "You cannot delete your own account" }, { status: 403 });
+    }
+
+    const target = db.select().from(users).where(eq(users.id, userId)).get();
+    if (!target) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Block deletion if this is the last admin
+    if (target.role === "admin") {
+      const adminCount = db
+        .select({ count: sql<number>`count(*)` })
+        .from(users)
+        .where(and(eq(users.role, "admin"), eq(users.isActive, 1)))
+        .get()?.count ?? 0;
+      if (adminCount <= 1) {
+        return NextResponse.json(
+          { error: "Cannot delete the only admin account. Promote another user to admin first." },
+          { status: 409 }
+        );
+      }
+    }
+
+    // Nullify conducted_by on assessments created by this user — assessments remain intact
+    db.update(assessments)
+      .set({ conductedBy: null })
+      .where(eq(assessments.conductedBy, userId))
+      .run();
+
+    // Nullify created_by on any assessment tokens created by this user
+    db.update(assessmentTokens)
+      .set({ createdBy: null })
+      .where(eq(assessmentTokens.createdBy, userId))
+      .run();
+
+    db.delete(users).where(eq(users.id, userId)).run();
+
+    log({
+      level: "warn",
+      category: "user",
+      action: "user.deleted",
+      userId: session.userId,
+      username: session.username,
+      resourceType: "user",
+      resourceId: userId,
+      metadata: { deletedUsername: target.username, deletedRole: target.role },
+    });
+
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error("[admin/users DELETE]", err);
+    return NextResponse.json({ error: "Failed to delete user" }, { status: 500 });
+  }
+}
 
 // PATCH /api/admin/users/[id] — update displayName, role, password, or isActive
 export async function PATCH(

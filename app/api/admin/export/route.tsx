@@ -5,7 +5,7 @@ import type { DocumentProps } from "@react-pdf/renderer";
 import React from "react";
 import JSZip from "jszip";
 import { db } from "@/lib/db";
-import { assessments, customers, users, templates } from "@/lib/db/schema";
+import { assessments, customers, users, templates, settings } from "@/lib/db/schema";
 import { getQuestionsForTemplate } from "@/lib/questions-db";
 import { buildSummary } from "@/lib/summary";
 import { AssessmentReport } from "@/components/pdf/AssessmentReport";
@@ -70,6 +70,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       );
     }
 
+    const settingsRows = db.select().from(settings).all();
+    const settingsMap = Object.fromEntries(settingsRows.map((r) => [r.key, r.value]));
+    const orgName = settingsMap["org_name"]?.trim() || "Landis Assessments";
+    const orgLogo = settingsMap["org_logo"] || null;
+
     const zip = new JSZip();
 
     for (const assessment of rows) {
@@ -103,6 +108,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
           summary,
           questions,
           answersMap,
+          orgName,
+          orgLogo,
         }) as React.ReactElement<DocumentProps>
       );
 

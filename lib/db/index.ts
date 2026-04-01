@@ -139,6 +139,84 @@ function createDb(): DB {
   addColumnIfMissing(sqlite, "users", "is_active", "INTEGER DEFAULT 1");
   addColumnIfMissing(sqlite, "assessments", "source", "TEXT DEFAULT 'staff'");
 
+  // Migration: make assessments.conducted_by nullable to support user deletion
+  // SQLite doesn't support ALTER COLUMN, so we rebuild the table if needed.
+  try {
+    type ColInfo = { name: string; notnull: number };
+    const assessmentCols = sqlite.prepare("PRAGMA table_info(assessments)").all() as ColInfo[];
+    const conductedByCol = assessmentCols.find(c => c.name === "conducted_by");
+    if (conductedByCol && conductedByCol.notnull === 1) {
+      sqlite.exec(`
+        PRAGMA foreign_keys = OFF;
+        CREATE TABLE assessments_nullable_migration (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          customer_id INTEGER NOT NULL REFERENCES customers(id),
+          conducted_by INTEGER REFERENCES users(id),
+          template_id TEXT NOT NULL,
+          answers TEXT NOT NULL,
+          overall_score INTEGER NOT NULL,
+          category_scores TEXT NOT NULL,
+          source TEXT DEFAULT 'staff',
+          completed_at INTEGER,
+          created_at INTEGER
+        );
+        INSERT INTO assessments_nullable_migration
+          SELECT id, customer_id, conducted_by, template_id, answers, overall_score,
+                 category_scores, source, completed_at, created_at
+          FROM assessments;
+        DROP TABLE assessments;
+        ALTER TABLE assessments_nullable_migration RENAME TO assessments;
+        PRAGMA foreign_keys = ON;
+      `);
+      // Fix the AUTOINCREMENT sequence table after the rename
+      try {
+        sqlite.prepare(
+          `UPDATE sqlite_sequence SET name='assessments' WHERE name='assessments_nullable_migration'`
+        ).run();
+      } catch { /* table may be empty — no entry to fix */ }
+    }
+  } catch (err) {
+    console.error("[db migration] assessments.conducted_by nullable:", err);
+  }
+
+  // Migration: make assessment_tokens.created_by nullable to support user deletion
+  try {
+    type ColInfo = { name: string; notnull: number };
+    const tokenCols = sqlite.prepare("PRAGMA table_info(assessment_tokens)").all() as ColInfo[];
+    const createdByCol = tokenCols.find(c => c.name === "created_by");
+    if (createdByCol && createdByCol.notnull === 1) {
+      sqlite.exec(`
+        PRAGMA foreign_keys = OFF;
+        CREATE TABLE assessment_tokens_nullable_migration (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          token TEXT UNIQUE NOT NULL,
+          customer_id INTEGER NOT NULL REFERENCES customers(id),
+          template_id TEXT NOT NULL,
+          created_by INTEGER REFERENCES users(id),
+          expires_at INTEGER NOT NULL,
+          used_at INTEGER,
+          submitted_from_ip TEXT,
+          is_active INTEGER DEFAULT 1,
+          created_at INTEGER
+        );
+        INSERT INTO assessment_tokens_nullable_migration
+          SELECT id, token, customer_id, template_id, created_by, expires_at,
+                 used_at, submitted_from_ip, is_active, created_at
+          FROM assessment_tokens;
+        DROP TABLE assessment_tokens;
+        ALTER TABLE assessment_tokens_nullable_migration RENAME TO assessment_tokens;
+        PRAGMA foreign_keys = ON;
+      `);
+      try {
+        sqlite.prepare(
+          `UPDATE sqlite_sequence SET name='assessment_tokens' WHERE name='assessment_tokens_nullable_migration'`
+        ).run();
+      } catch { /* no sequence entry to fix */ }
+    }
+  } catch (err) {
+    console.error("[db migration] assessment_tokens.created_by nullable:", err);
+  }
+
   const db = drizzle(sqlite, { schema });
 
   const nowSec = Math.floor(Date.now() / 1000);
