@@ -46,6 +46,24 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* Landis brand palette */
+  --color-primary-50: #f0f7ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-500: #1e40af;
+  --color-primary-600: #1e3a8a;
+  --color-brand-accent-400: #38bdf8;
+  --color-brand-accent-500: #0ea5e9;
+  --color-brand-accent-600: #0284c8;
+  --color-neutral-50: #f8fafc;
+  --color-neutral-100: #f1f5f9;
+  --color-neutral-400: #94a3b8;
+  --color-neutral-700: #334155;
+  --color-neutral-800: #1e293b;
+  --color-neutral-900: #0f172a;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
 }
 
 :root {

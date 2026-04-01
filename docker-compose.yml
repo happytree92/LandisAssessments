@@ -1,0 +1,13 @@
+version: "3.9"
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - JWT_SECRET=${JWT_SECRET}
+      - DATABASE_URL=./data/assessments.db
+    volumes:
+      - ./data:/app/data    # SQLite file persisted here
+    restart: unless-stopped
