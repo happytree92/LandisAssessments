@@ -89,6 +89,21 @@ export const assessmentTokens = sqliteTable("assessment_tokens", {
   createdAt: integer("created_at"),
 });
 
+// Activity logs — all significant actions recorded here
+export const activityLogs = sqliteTable("activity_logs", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  timestamp: integer("timestamp").notNull(),
+  level: text("level").notNull(),            // "info" | "warn" | "error"
+  category: text("category").notNull(),      // "auth"|"assessment"|"customer"|"user"|"token"|"system"|"access"
+  action: text("action").notNull(),
+  userId: integer("user_id"),
+  username: text("username"),
+  ipAddress: text("ip_address"),
+  resourceType: text("resource_type"),
+  resourceId: integer("resource_id"),
+  metadata: text("metadata"),               // JSON
+});
+
 export type User = typeof users.$inferSelect;
 export type Customer = typeof customers.$inferSelect;
 export type Assessment = typeof assessments.$inferSelect;
@@ -96,3 +111,4 @@ export type Template = typeof templates.$inferSelect;
 export type DbQuestion = typeof questions.$inferSelect;
 export type Setting = typeof settings.$inferSelect;
 export type AssessmentToken = typeof assessmentTokens.$inferSelect;
+export type ActivityLog = typeof activityLogs.$inferSelect;

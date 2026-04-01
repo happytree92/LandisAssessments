@@ -4,6 +4,8 @@ import { db } from "@/lib/db";
 import { assessments, customers, users } from "@/lib/db/schema";
 import { calculateScore } from "@/lib/scoring";
 import { getQuestionsForTemplate } from "@/lib/questions-db";
+import { verifyToken } from "@/lib/auth";
+import { log } from "@/lib/logger";
 import type { AssessmentResult } from "@/lib/scoring";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -52,6 +54,8 @@ export async function PATCH(
   { params }: RouteContext
 ): Promise<NextResponse> {
   try {
+    const sessionCookie = req.cookies.get("session")?.value;
+    const session = sessionCookie ? await verifyToken(sessionCookie).catch(() => null) : null;
     const { id } = await params;
     const assessmentId = parseInt(id, 10);
     if (isNaN(assessmentId)) {
@@ -122,6 +126,17 @@ export async function PATCH(
       .where(eq(assessments.id, assessmentId))
       .returning()
       .get();
+
+    log({
+      level: "info",
+      category: "assessment",
+      action: "assessment.completed",
+      userId: session?.userId,
+      username: session?.username,
+      resourceType: "assessment",
+      resourceId: assessmentId,
+      metadata: { overallScore: overall, templateId: existing.templateId, customerId: existing.customerId },
+    });
 
     return NextResponse.json({ assessment: completed });
   } catch (err) {

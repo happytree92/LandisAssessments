@@ -118,6 +118,20 @@ function createDb(): DB {
       is_active INTEGER DEFAULT 1,
       created_at INTEGER
     );
+
+    CREATE TABLE IF NOT EXISTS activity_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      timestamp INTEGER NOT NULL,
+      level TEXT NOT NULL,
+      category TEXT NOT NULL,
+      action TEXT NOT NULL,
+      user_id INTEGER,
+      username TEXT,
+      ip_address TEXT,
+      resource_type TEXT,
+      resource_id INTEGER,
+      metadata TEXT
+    );
   `);
 
   // Schema migrations — add new columns to existing tables without dropping data
@@ -127,14 +141,39 @@ function createDb(): DB {
 
   const db = drizzle(sqlite, { schema });
 
+  const nowSec = Math.floor(Date.now() / 1000);
+
   // Expire tokens where expiresAt < now and isActive = 1
   try {
-    const nowSec = Math.floor(Date.now() / 1000);
     sqlite.exec(
       `UPDATE assessment_tokens SET is_active = 0 WHERE expires_at < ${nowSec} AND is_active = 1`
     );
   } catch {
-    // Table may not exist on very first run before CREATE above runs — safe to ignore
+    // Safe to ignore if table doesn't exist yet
+  }
+
+  // Retention: delete logs older than 90 days, then log the cleanup
+  try {
+    const retentionCutoff = nowSec - 90 * 24 * 60 * 60;
+    const deleted = sqlite.prepare(
+      `DELETE FROM activity_logs WHERE timestamp < ? RETURNING id`
+    ).all(retentionCutoff) as { id: number }[];
+    if (deleted.length > 0) {
+      sqlite.prepare(
+        `INSERT INTO activity_logs (timestamp, level, category, action, metadata) VALUES (?, 'info', 'system', 'system.log_retention', ?)`
+      ).run(nowSec, JSON.stringify({ deletedCount: deleted.length }));
+    }
+  } catch {
+    // Safe to ignore on first run
+  }
+
+  // Log app startup
+  try {
+    sqlite.prepare(
+      `INSERT INTO activity_logs (timestamp, level, category, action, metadata) VALUES (?, 'info', 'system', 'system.startup', ?)`
+    ).run(nowSec, JSON.stringify({ nodeEnv: process.env.NODE_ENV ?? "development" }));
+  } catch {
+    // Safe to ignore
   }
 
   // Seed default admin if users table is empty

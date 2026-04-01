@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { customers, assessments, users } from "@/lib/db/schema";
+import { verifyToken } from "@/lib/auth";
+import { log } from "@/lib/logger";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -51,6 +53,8 @@ export async function GET(_req: NextRequest, { params }: RouteContext): Promise<
 // PATCH /api/customers/[id] — update customer
 export async function PATCH(req: NextRequest, { params }: RouteContext): Promise<NextResponse> {
   try {
+    const sessionCookie = req.cookies.get("session")?.value;
+    const session = sessionCookie ? await verifyToken(sessionCookie).catch(() => null) : null;
     const { id } = await params;
     const customerId = parseInt(id, 10);
     if (isNaN(customerId)) {
@@ -87,6 +91,17 @@ export async function PATCH(req: NextRequest, { params }: RouteContext): Promise
       .returning()
       .get();
 
+    log({
+      level: "info",
+      category: "customer",
+      action: "customer.updated",
+      userId: session?.userId,
+      username: session?.username,
+      resourceType: "customer",
+      resourceId: customerId,
+      metadata: { name: updated.name },
+    });
+
     return NextResponse.json({ customer: updated });
   } catch (err) {
     if (process.env.NODE_ENV === "development") console.error(err);
@@ -95,8 +110,10 @@ export async function PATCH(req: NextRequest, { params }: RouteContext): Promise
 }
 
 // DELETE /api/customers/[id] — delete customer (cascade assessments)
-export async function DELETE(_req: NextRequest, { params }: RouteContext): Promise<NextResponse> {
+export async function DELETE(req: NextRequest, { params }: RouteContext): Promise<NextResponse> {
   try {
+    const sessionCookie = req.cookies.get("session")?.value;
+    const session = sessionCookie ? await verifyToken(sessionCookie).catch(() => null) : null;
     const { id } = await params;
     const customerId = parseInt(id, 10);
     if (isNaN(customerId)) {
@@ -108,9 +125,22 @@ export async function DELETE(_req: NextRequest, { params }: RouteContext): Promi
       return NextResponse.json({ error: "Customer not found" }, { status: 404 });
     }
 
+    const customerName = existing.name;
+
     // Delete assessments first (foreign key constraint)
     db.delete(assessments).where(eq(assessments.customerId, customerId)).run();
     db.delete(customers).where(eq(customers.id, customerId)).run();
+
+    log({
+      level: "warn",
+      category: "customer",
+      action: "customer.deleted",
+      userId: session?.userId,
+      username: session?.username,
+      resourceType: "customer",
+      resourceId: customerId,
+      metadata: { name: customerName },
+    });
 
     return NextResponse.json({ success: true });
   } catch (err) {

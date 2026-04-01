@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { assessments, customers, templates } from "@/lib/db/schema";
 import { verifyToken } from "@/lib/auth";
+import { log } from "@/lib/logger";
 
 // POST /api/assessments — create a draft assessment (no answers yet)
 // Returns the new assessment id so the client can redirect to /conduct
@@ -67,6 +68,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       })
       .returning()
       .get();
+
+    log({
+      level: "info",
+      category: "assessment",
+      action: "assessment.started",
+      userId: session.userId,
+      username: session.username,
+      resourceType: "assessment",
+      resourceId: draft.id,
+      metadata: { customerId, templateId },
+    });
 
     return NextResponse.json({ assessment: draft }, { status: 201 });
   } catch (err) {

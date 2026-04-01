@@ -8,6 +8,8 @@ import { assessments, customers, users, templates } from "@/lib/db/schema";
 import { getQuestionsForTemplate } from "@/lib/questions-db";
 import { buildSummary } from "@/lib/summary";
 import { AssessmentReport } from "@/components/pdf/AssessmentReport";
+import { verifyToken } from "@/lib/auth";
+import { log } from "@/lib/logger";
 import type { Answer } from "@/lib/scoring";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -22,10 +24,12 @@ function isoDate(unix: number): string {
 
 // GET /api/assessments/[id]/pdf — render and return a PDF for the assessment
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: RouteContext
 ): Promise<NextResponse> {
   try {
+    const sessionCookie = req.cookies.get("session")?.value;
+    const session = sessionCookie ? await verifyToken(sessionCookie).catch(() => null) : null;
     const { id } = await params;
     const assessmentId = parseInt(id, 10);
     if (isNaN(assessmentId)) {
@@ -90,6 +94,17 @@ export async function GET(
         answersMap,
       }) as React.ReactElement<DocumentProps>
     );
+
+    log({
+      level: "info",
+      category: "assessment",
+      action: "assessment.pdf_exported",
+      userId: session?.userId,
+      username: session?.username,
+      resourceType: "assessment",
+      resourceId: assessmentId,
+      metadata: { customerName, templateId: assessment.templateId },
+    });
 
     const filename = `assessment-${safeFilename(customerName)}-${isoDate(assessment.completedAt)}.pdf`;
 

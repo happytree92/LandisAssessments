@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { verifyToken } from "@/lib/auth";
+import { log } from "@/lib/logger";
 
 // POST /api/auth/change-password — change own password (requires current password)
 export async function POST(req: NextRequest): Promise<NextResponse> {
@@ -45,6 +46,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const passwordHash = await bcrypt.hash(body.newPassword, 12);
     db.update(users).set({ passwordHash }).where(eq(users.id, user.id)).run();
+
+    log({
+      level: "info",
+      category: "auth",
+      action: "password.changed",
+      userId: session.userId,
+      username: session.username,
+    });
 
     return NextResponse.json({ ok: true });
   } catch (err) {

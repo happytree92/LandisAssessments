@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { assessmentTokens } from "@/lib/db/schema";
 import { verifyToken } from "@/lib/auth";
+import { log } from "@/lib/logger";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -34,10 +35,24 @@ export async function PATCH(
       return NextResponse.json({ error: "Cannot revoke a completed token" }, { status: 409 });
     }
 
+    const adminToken = req.cookies.get("session")?.value;
+    const adminSession = adminToken ? await verifyToken(adminToken).catch(() => null) : null;
+
     db.update(assessmentTokens)
       .set({ isActive: 0 })
       .where(eq(assessmentTokens.id, tokenId))
       .run();
+
+    log({
+      level: "warn",
+      category: "token",
+      action: "token.revoked",
+      userId: adminSession?.userId,
+      username: adminSession?.username,
+      resourceType: "assessment_token",
+      resourceId: tokenId,
+      metadata: { customerId: existing.customerId, templateId: existing.templateId },
+    });
 
     return NextResponse.json({ success: true });
   } catch (err) {

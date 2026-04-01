@@ -5,6 +5,7 @@ import { assessmentTokens, assessments } from "@/lib/db/schema";
 import { getQuestionsForTemplate } from "@/lib/questions-db";
 import { calculateScore } from "@/lib/scoring";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { log } from "@/lib/logger";
 import type { AssessmentResult } from "@/lib/scoring";
 
 type RouteContext = { params: Promise<{ token: string }> };
@@ -95,6 +96,17 @@ export async function POST(
       .set({ usedAt: now, submittedFromIp: ip })
       .where(eq(assessmentTokens.token, token))
       .run();
+
+    log({
+      level: "info",
+      category: "token",
+      action: "token.used",
+      resourceType: "assessment_token",
+      resourceId: record.id,
+      ipAddress: ip,
+      // Never log the raw token value
+      metadata: { customerId: record.customerId, templateId: record.templateId, overallScore: overall },
+    });
 
     return NextResponse.json({ success: true });
   } catch (err) {

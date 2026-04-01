@@ -4,10 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const NAV = [
+  { href: "/admin", label: "Dashboard", exact: true },
   { href: "/admin/users", label: "Users" },
   { href: "/admin/questions", label: "Questions" },
   { href: "/admin/branding", label: "Branding" },
   { href: "/admin/export", label: "Export" },
+  { href: "/admin/logs", label: "Logs" },
 ];
 
 export function AdminSidebar() {
@@ -22,7 +24,7 @@ export function AdminSidebar() {
       </div>
       <nav className="py-2">
         {NAV.map((item) => {
-          const active = pathname.startsWith(item.href);
+          const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
           return (
             <Link
               key={item.href}

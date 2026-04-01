@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { assessmentTokens, customers, templates } from "@/lib/db/schema";
 import { verifyToken } from "@/lib/auth";
+import { log } from "@/lib/logger";
 
 // POST /api/assessment-tokens — staff creates a shareable self-assessment link
 export async function POST(req: NextRequest): Promise<NextResponse> {
@@ -64,6 +65,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     // Build the shareable URL from the request origin
     const origin = req.nextUrl.origin;
     const shareUrl = `${origin}/assess/${token}`;
+
+    log({
+      level: "info",
+      category: "token",
+      action: "token.generated",
+      userId: session.userId,
+      username: session.username,
+      resourceType: "assessment_token",
+      resourceId: record.id,
+      // Never log the raw token value
+      metadata: { customerId, templateId, expiresAt },
+    });
 
     return NextResponse.json({ token: record, shareUrl }, { status: 201 });
   } catch (err) {

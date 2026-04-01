@@ -3,6 +3,8 @@ import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { verifyToken } from "@/lib/auth";
+import { log } from "@/lib/logger";
 
 // GET /api/admin/users — list all users
 export async function GET(): Promise<NextResponse> {
@@ -28,6 +30,8 @@ export async function GET(): Promise<NextResponse> {
 // POST /api/admin/users — create a new user
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
+    const sessionCookie = req.cookies.get("session")?.value;
+    const session = sessionCookie ? await verifyToken(sessionCookie).catch(() => null) : null;
     const body = await req.json() as {
       username?: string;
       displayName?: string;
@@ -71,6 +75,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       })
       .returning({ id: users.id, username: users.username, displayName: users.displayName, role: users.role })
       .get();
+
+    log({
+      level: "info",
+      category: "user",
+      action: "user.created",
+      userId: session?.userId,
+      username: session?.username,
+      resourceType: "user",
+      resourceId: created.id,
+      metadata: { newUsername: created.username, role: created.role },
+    });
 
     return NextResponse.json({ user: created }, { status: 201 });
   } catch (err) {

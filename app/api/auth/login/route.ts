@@ -4,8 +4,10 @@ import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { signToken } from "@/lib/auth";
+import { log } from "@/lib/logger";
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
   try {
     const body = await req.json();
     const { username, password } = body as {
@@ -29,6 +31,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const valid = await bcrypt.compare(password, passwordHash);
 
     if (!user || !valid || user.isActive === 0) {
+      log({
+        level: "warn",
+        category: "auth",
+        action: "login.failed",
+        ipAddress: ip,
+        metadata: { attemptedUsername: typeof username === "string" ? username : "unknown" },
+      });
       return NextResponse.json(
         { error: "Invalid username or password" },
         { status: 401 }
@@ -49,6 +58,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         displayName: user.displayName,
         role: user.role ?? "staff",
       },
+    });
+
+    log({
+      level: "info",
+      category: "auth",
+      action: "login.success",
+      userId: user.id,
+      username: user.username,
+      ipAddress: ip,
     });
 
     response.cookies.set("session", token, {

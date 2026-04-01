@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { assessmentTokens, customers, templates } from "@/lib/db/schema";
 import { getQuestionsForTemplate } from "@/lib/questions-db";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { log } from "@/lib/logger";
 
 type RouteContext = { params: Promise<{ token: string }> };
 
@@ -31,6 +32,15 @@ export async function GET(
 
     // Unified invalid message — do not reveal whether token exists
     if (!record || record.isActive === 0 || record.expiresAt < now || record.usedAt) {
+      // Log the access attempt without revealing the token value
+      const isExpired = record && (record.isActive === 0 || record.expiresAt < now);
+      log({
+        level: "warn",
+        category: "token",
+        action: isExpired ? "token.expired_access" : "token.invalid_access",
+        ipAddress: ip,
+        metadata: { reason: !record ? "not_found" : record.usedAt ? "already_used" : "expired_or_inactive" },
+      });
       return NextResponse.json(
         { error: "This link is invalid or has expired. Contact your IT provider." },
         { status: 410 }

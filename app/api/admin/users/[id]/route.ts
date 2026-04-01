@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { verifyToken } from "@/lib/auth";
+import { log } from "@/lib/logger";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -69,6 +70,10 @@ export async function PATCH(
       );
     }
 
+    // Capture who is making the change (already have token from self-deactivation check above)
+    const adminToken = req.cookies.get("session")?.value;
+    const adminSession = adminToken ? await verifyToken(adminToken).catch(() => null) : null;
+
     const updated = db
       .update(users)
       .set(updates)
@@ -81,6 +86,31 @@ export async function PATCH(
         isActive: users.isActive,
       })
       .get();
+
+    if (typeof body.isActive === "number" && body.isActive === 0) {
+      log({
+        level: "warn",
+        category: "user",
+        action: "user.deactivated",
+        userId: adminSession?.userId,
+        username: adminSession?.username,
+        resourceType: "user",
+        resourceId: userId,
+        metadata: { targetUsername: existing.username },
+      });
+    }
+    if (body.role === "admin" || body.role === "staff") {
+      log({
+        level: "warn",
+        category: "user",
+        action: "user.role_changed",
+        userId: adminSession?.userId,
+        username: adminSession?.username,
+        resourceType: "user",
+        resourceId: userId,
+        metadata: { targetUsername: existing.username, previousRole: existing.role, newRole: body.role },
+      });
+    }
 
     return NextResponse.json({ user: updated });
   } catch (err) {
