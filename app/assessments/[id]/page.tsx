@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { assessments, customers, users } from "@/lib/db/schema";
 import { securityQuestions, onboardingQuestions } from "@/lib/questions";
 import { ScoreCard } from "@/components/assessments/ScoreCard";
+import { CategoryBreakdown } from "@/components/assessments/CategoryBreakdown";
 import type { Question, Answer } from "@/lib/scoring";
 
 type Props = { params: Promise<{ id: string }> };
@@ -178,30 +179,7 @@ export default async function AssessmentResultsPage({ params }: Props) {
           <h2 className="text-sm font-semibold text-[#334155] uppercase tracking-wide mb-4">
             Score by Category
           </h2>
-          <div className="space-y-4">
-            {Object.entries(categoryScores).map(([cat, score]) => {
-              const color =
-                score >= 75
-                  ? "bg-[#10b981]"
-                  : score >= 50
-                  ? "bg-[#f59e0b]"
-                  : "bg-[#ef4444]";
-              return (
-                <div key={cat}>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-[#334155] font-medium">{cat}</span>
-                    <span className="text-[#94a3b8] font-semibold">{score}</span>
-                  </div>
-                  <div className="w-full h-2.5 bg-neutral-100 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all ${color}`}
-                      style={{ width: `${score}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <CategoryBreakdown scores={categoryScores} />
         </div>
       )}
 

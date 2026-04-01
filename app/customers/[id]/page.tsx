@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { eq, desc } from "drizzle-orm";
@@ -6,6 +8,7 @@ import { customers, assessments, users } from "@/lib/db/schema";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { DeleteCustomerButton } from "@/components/customers/DeleteCustomerButton";
+import { Trendline } from "@/components/assessments/Trendline";
 
 function formatDate(unix: number | null): string {
   if (!unix) return "—";
@@ -45,6 +48,7 @@ export default async function CustomerDetailPage({ params }: Props) {
       id: assessments.id,
       templateId: assessments.templateId,
       overallScore: assessments.overallScore,
+      completedAt: assessments.completedAt,
       createdAt: assessments.createdAt,
       conductorName: users.displayName,
     })
@@ -53,6 +57,16 @@ export default async function CustomerDetailPage({ params }: Props) {
     .where(eq(assessments.customerId, customerId))
     .orderBy(desc(assessments.createdAt))
     .all();
+
+  const completedHistory = history.filter((a) => a.completedAt !== null);
+
+  // Build trendline data from completed assessments, oldest first
+  const trendData = [...completedHistory]
+    .sort((a, b) => (a.completedAt ?? 0) - (b.completedAt ?? 0))
+    .map((a) => ({
+      label: formatDate(a.completedAt),
+      score: a.overallScore,
+    }));
 
   const templateLabel = (id: string) =>
     id === "security" ? "Security Assessment" : "New Customer Onboarding";
@@ -107,6 +121,20 @@ export default async function CustomerDetailPage({ params }: Props) {
         </Card>
       )}
 
+      {/* Trendline — only if ≥ 2 completed assessments */}
+      {trendData.length >= 2 && (
+        <Card className="border border-neutral-200 shadow-sm rounded-lg mb-6">
+          <CardHeader className="pb-2">
+            <h2 className="text-sm font-semibold text-[#334155] uppercase tracking-wide">
+              Score Trend
+            </h2>
+          </CardHeader>
+          <CardContent className="pt-2">
+            <Trendline data={trendData} />
+          </CardContent>
+        </Card>
+      )}
+
       {/* Assessment History */}
       <Card className="border border-neutral-200 shadow-sm rounded-lg">
         <CardHeader className="pb-3">
@@ -144,11 +172,15 @@ export default async function CustomerDetailPage({ params }: Props) {
                 <tbody className="divide-y divide-neutral-100">
                   {history.map((a) => (
                     <tr key={a.id} className="hover:bg-neutral-50">
-                      <td className="py-3 text-[#334155]">{formatDate(a.createdAt)}</td>
+                      <td className="py-3 text-[#334155]">{formatDate(a.completedAt ?? a.createdAt)}</td>
                       <td className="py-3 text-[#334155]">{templateLabel(a.templateId)}</td>
                       <td className="py-3 text-[#334155]">{a.conductorName ?? "—"}</td>
                       <td className="py-3">
-                        <ScoreBadge score={a.overallScore} />
+                        {a.completedAt ? (
+                          <ScoreBadge score={a.overallScore} />
+                        ) : (
+                          <span className="text-xs text-[#94a3b8] italic">Draft</span>
+                        )}
                       </td>
                       <td className="py-3 text-right">
                         <Link

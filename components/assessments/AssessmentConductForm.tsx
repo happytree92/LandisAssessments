@@ -128,7 +128,7 @@ export function AssessmentConductForm({
   return (
     <div className="max-w-3xl">
       {/* Sticky progress bar */}
-      <div className="sticky top-0 z-10 bg-[#f8fafc] pt-2 pb-4 mb-6 border-b border-neutral-200">
+      <div className="sticky top-14 z-10 bg-[#f8fafc] pt-2 pb-4 mb-6 border-b border-neutral-200">
         <div className="flex items-center justify-between mb-2">
           <div>
             <span className="text-sm font-medium text-[#334155]">
