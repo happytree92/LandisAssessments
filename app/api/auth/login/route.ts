@@ -1,0 +1,70 @@
+import { NextRequest, NextResponse } from "next/server";
+import { eq } from "drizzle-orm";
+import bcrypt from "bcryptjs";
+import { db } from "@/lib/db";
+import { users } from "@/lib/db/schema";
+import { signToken } from "@/lib/auth";
+
+export async function POST(req: NextRequest): Promise<NextResponse> {
+  try {
+    const body = await req.json();
+    const { username, password } = body as {
+      username: unknown;
+      password: unknown;
+    };
+
+    if (typeof username !== "string" || typeof password !== "string") {
+      return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+    }
+
+    const user = db
+      .select()
+      .from(users)
+      .where(eq(users.username, username))
+      .get();
+
+    // Use a constant-time comparison path regardless of whether the user exists
+    // to avoid username enumeration via timing
+    const passwordHash = user?.passwordHash ?? "$2b$12$invalidhashforinvaliduser000000";
+    const valid = await bcrypt.compare(password, passwordHash);
+
+    if (!user || !valid) {
+      return NextResponse.json(
+        { error: "Invalid username or password" },
+        { status: 401 }
+      );
+    }
+
+    const token = await signToken({
+      userId: user.id,
+      username: user.username,
+      displayName: user.displayName,
+    });
+
+    const response = NextResponse.json({
+      user: {
+        id: user.id,
+        username: user.username,
+        displayName: user.displayName,
+      },
+    });
+
+    response.cookies.set("session", token, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 60 * 60 * 8, // 8 hours
+    });
+
+    return response;
+  } catch (err) {
+    if (process.env.NODE_ENV === "development") {
+      console.error("Login error:", err);
+    }
+    return NextResponse.json(
+      { error: "An unexpected error occurred" },
+      { status: 500 }
+    );
+  }
+}

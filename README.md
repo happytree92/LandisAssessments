@@ -108,6 +108,13 @@ Verifies that all standard Landis IT onboarding steps have been completed:
    chmod +x push.sh
    ```
 
+4. ### Docker Buildx Setup (First Time Only)
+   ```
+   docker buildx create --name multibuilder --use
+   docker buildx inspect --bootstrap
+   ```
+   This only needs to be run once per Mac. After that, `./push.sh` handles everything.
+
 That's it. You're connected.
 
 ---
