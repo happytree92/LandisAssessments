@@ -3,6 +3,7 @@ import { questions, templates } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { QuestionsTable } from "@/components/admin/QuestionsTable";
 import { CSVImport } from "@/components/admin/CSVImport";
+import { NewTemplateForm } from "@/components/admin/NewTemplateForm";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +43,17 @@ export default async function AdminQuestionsPage() {
         >
           Download CSV
         </a>
+      </div>
+
+      {/* New Template */}
+      <div className="rounded-lg border border-neutral-200 bg-white p-6 shadow-sm">
+        <h2 className="text-sm font-semibold text-[#334155] uppercase tracking-wide mb-1">
+          Create New Template
+        </h2>
+        <p className="text-xs text-[#94a3b8] mb-4">
+          After creating, import questions via CSV using the template slug shown below.
+        </p>
+        <NewTemplateForm />
       </div>
 
       {/* CSV Import */}

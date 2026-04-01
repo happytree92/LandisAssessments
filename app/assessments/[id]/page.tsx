@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { assessments, customers, users } from "@/lib/db/schema";
+import { assessments, customers, users, templates } from "@/lib/db/schema";
 import { getQuestionsForTemplate } from "@/lib/questions-db";
 import { ScoreCard } from "@/components/assessments/ScoreCard";
 import { CategoryBreakdown } from "@/components/assessments/CategoryBreakdown";
@@ -104,10 +104,12 @@ export default async function AssessmentResultsPage({ params }: Props) {
 
   const questions = getQuestionsForTemplate(assessment.templateId);
 
-  const templateLabel =
-    assessment.templateId === "security"
-      ? "Security Assessment"
-      : "New Customer Onboarding";
+  const templateRecord = db
+    .select()
+    .from(templates)
+    .where(eq(templates.slug, assessment.templateId))
+    .get();
+  const templateLabel = templateRecord?.name ?? assessment.templateId;
 
   // Parse JSON fields
   const answersMap: Record<string, { answer: Answer; notes?: string }> =

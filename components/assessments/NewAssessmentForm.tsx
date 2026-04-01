@@ -5,34 +5,17 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import type { Customer } from "@/lib/db/schema";
+import type { Customer, Template } from "@/lib/db/schema";
 
 interface NewAssessmentFormProps {
   customers: Customer[];
+  templates: Template[];
   preselectedCustomerId?: number;
 }
 
-const TEMPLATES = [
-  {
-    id: "security",
-    label: "Security Assessment",
-    description:
-      "Evaluates the customer's IT security posture across access control, email security, backup & recovery, endpoint protection, network security, incident response, and compliance. ~25 questions.",
-    icon: "🔒",
-  },
-  {
-    id: "onboarding",
-    label: "New Customer Onboarding",
-    description:
-      "Verifies that all Landis IT onboarding steps are complete: M365 setup, documentation, remote support tooling, security baseline, and business continuity planning. ~12 questions.",
-    icon: "✅",
-  },
-] as const;
-
-type TemplateId = (typeof TEMPLATES)[number]["id"];
-
 export function NewAssessmentForm({
   customers,
+  templates,
   preselectedCustomerId,
 }: NewAssessmentFormProps) {
   const router = useRouter();
@@ -40,7 +23,7 @@ export function NewAssessmentForm({
   const [customerId, setCustomerId] = useState<number | "">(
     preselectedCustomerId ?? ""
   );
-  const [templateId, setTemplateId] = useState<TemplateId | "">("");
+  const [templateId, setTemplateId] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -167,26 +150,27 @@ export function NewAssessmentForm({
           <Label>Assessment Template</Label>
 
           <div className="grid gap-3">
-            {TEMPLATES.map((t) => (
+            {templates.filter((t) => t.isActive !== 0).map((t) => (
               <Card
-                key={t.id}
-                onClick={() => setTemplateId(t.id)}
+                key={t.slug}
+                onClick={() => setTemplateId(t.slug)}
                 className={`cursor-pointer border-2 rounded-lg transition-colors ${
-                  templateId === t.id
+                  templateId === t.slug
                     ? "border-[#1e40af] bg-[#f0f7ff]"
                     : "border-neutral-200 hover:border-neutral-300"
                 }`}
               >
                 <CardContent className="py-4 px-5">
                   <div className="flex items-start gap-3">
-                    <span className="text-2xl">{t.icon}</span>
                     <div>
-                      <p className="font-semibold text-[#0f172a]">{t.label}</p>
-                      <p className="text-sm text-[#94a3b8] mt-0.5">
-                        {t.description}
-                      </p>
+                      <p className="font-semibold text-[#0f172a]">{t.name}</p>
+                      {t.description && (
+                        <p className="text-sm text-[#94a3b8] mt-0.5">
+                          {t.description}
+                        </p>
+                      )}
                     </div>
-                    {templateId === t.id && (
+                    {templateId === t.slug && (
                       <div className="ml-auto shrink-0 w-5 h-5 rounded-full bg-[#1e40af] flex items-center justify-center">
                         <svg
                           className="w-3 h-3 text-white"

@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { customers } from "@/lib/db/schema";
+import { customers, templates } from "@/lib/db/schema";
 import { NewAssessmentForm } from "@/components/assessments/NewAssessmentForm";
+
+export const dynamic = "force-dynamic";
 
 type Props = { searchParams: Promise<{ customerId?: string }> };
 
@@ -10,6 +12,7 @@ export default async function NewAssessmentPage({ searchParams }: Props) {
   const preselected = params.customerId ? parseInt(params.customerId, 10) : undefined;
 
   const allCustomers = db.select().from(customers).all();
+  const allTemplates = db.select().from(templates).all();
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-10">
@@ -22,6 +25,7 @@ export default async function NewAssessmentPage({ searchParams }: Props) {
 
       <NewAssessmentForm
         customers={allCustomers}
+        templates={allTemplates}
         preselectedCustomerId={
           preselected && !isNaN(preselected) ? preselected : undefined
         }
