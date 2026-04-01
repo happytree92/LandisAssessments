@@ -7,6 +7,7 @@ const NAV = [
   { href: "/admin/users", label: "Users" },
   { href: "/admin/questions", label: "Questions" },
   { href: "/admin/branding", label: "Branding" },
+  { href: "/admin/export", label: "Export" },
 ];
 
 export function AdminSidebar() {
@@ -36,13 +37,6 @@ export function AdminSidebar() {
             </Link>
           );
         })}
-        <a
-          href="/api/admin/questions/export"
-          download
-          className="flex items-center px-4 py-2.5 text-sm font-medium text-[#334155] hover:bg-neutral-50 hover:text-[#1e40af] transition-colors"
-        >
-          Export CSV
-        </a>
       </nav>
     </aside>
   );

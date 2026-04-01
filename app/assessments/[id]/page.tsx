@@ -4,8 +4,10 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { assessments, customers, users, templates } from "@/lib/db/schema";
 import { getQuestionsForTemplate } from "@/lib/questions-db";
+import { buildSummary } from "@/lib/summary";
 import { ScoreCard } from "@/components/assessments/ScoreCard";
 import { CategoryBreakdown } from "@/components/assessments/CategoryBreakdown";
+import { ExportPDFButton } from "@/components/assessments/ExportPDFButton";
 import type { Question, Answer } from "@/lib/scoring";
 
 type Props = { params: Promise<{ id: string }> };
@@ -34,49 +36,6 @@ function answerBadge(answer: Answer) {
   );
 }
 
-// Build the consultative summary based on score and failed questions
-function buildSummary(
-  score: number,
-  answersMap: Record<string, { answer: Answer; notes?: string }>,
-  questions: Question[]
-): string {
-  if (score >= 75) {
-    return "Strong security posture. Continue monitoring and consider proactive improvements.";
-  }
-
-  // Find failed (No) questions sorted by weight descending
-  const failed = questions
-    .filter((q) => answersMap[q.id]?.answer === "No")
-    .sort((a, b) => b.weight - a.weight);
-
-  if (score < 50) {
-    const top3 = failed
-      .slice(0, 3)
-      .map((q) => q.text)
-      .join("; ");
-    const suffix = top3
-      ? ` Landis IT recommends immediate action on: ${top3}.`
-      : "";
-    return `Several high-priority gaps were identified.${suffix}`;
-  }
-
-  // 50–74
-  const partial = questions
-    .filter(
-      (q) =>
-        answersMap[q.id]?.answer === "No" ||
-        answersMap[q.id]?.answer === "Maybe"
-    )
-    .sort((a, b) => b.weight - a.weight)
-    .slice(0, 3)
-    .map((q) => q.category);
-
-  const uniqueCategories = [...new Set(partial)];
-  const areas =
-    uniqueCategories.length > 0 ? uniqueCategories.join(", ") : "key areas";
-
-  return `Good progress, but key areas need attention. Consider reviewing: ${areas}.`;
-}
 
 export default async function AssessmentResultsPage({ params }: Props) {
   const { id } = await params;
@@ -155,12 +114,18 @@ export default async function AssessmentResultsPage({ params }: Props) {
       </Link>
 
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-[#0f172a]">{templateLabel}</h1>
-        <p className="text-sm text-[#94a3b8] mt-1">
-          {customer?.name} · Conducted by {conductor?.displayName ?? "—"} ·{" "}
-          {formatDate(assessment.completedAt)}
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-[#0f172a]">{templateLabel}</h1>
+          <p className="text-sm text-[#94a3b8] mt-1">
+            {customer?.name} · Conducted by {conductor?.displayName ?? "—"} ·{" "}
+            {formatDate(assessment.completedAt)}
+          </p>
+        </div>
+        <ExportPDFButton
+          assessmentId={assessmentId}
+          filename={`assessment-${(customer?.name ?? "export").replace(/[^a-zA-Z0-9-]/g, "_")}-${assessment.completedAt ? new Date(assessment.completedAt * 1000).toISOString().slice(0, 10) : "draft"}.pdf`}
+        />
       </div>
 
       {/* Score card */}
