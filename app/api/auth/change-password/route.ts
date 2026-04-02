@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
+import { hashPassword, verifyPassword } from "@/lib/password";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
@@ -39,12 +39,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const valid = await bcrypt.compare(body.currentPassword, user.passwordHash);
+    const valid = await verifyPassword(body.currentPassword, user.passwordHash);
     if (!valid) {
       return NextResponse.json({ error: "Current password is incorrect" }, { status: 403 });
     }
 
-    const passwordHash = await bcrypt.hash(body.newPassword, 12);
+    const passwordHash = await hashPassword(body.newPassword);
     db.update(users).set({ passwordHash }).where(eq(users.id, user.id)).run();
 
     log({

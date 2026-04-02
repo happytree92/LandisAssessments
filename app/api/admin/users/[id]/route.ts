@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
+import { hashPassword } from "@/lib/password";
 import { eq, and, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { users, assessments, assessmentTokens } from "@/lib/db/schema";
@@ -137,7 +137,7 @@ export async function PATCH(
       updates.isActive = body.isActive;
     }
     if (typeof body.password === "string" && body.password.length >= 8) {
-      updates.passwordHash = await bcrypt.hash(body.password, 12);
+      updates.passwordHash = await hashPassword(body.password);
     } else if (typeof body.password === "string" && body.password.length > 0) {
       return NextResponse.json(
         { error: "Password must be at least 8 characters" },

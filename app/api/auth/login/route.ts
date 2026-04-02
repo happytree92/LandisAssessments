@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
-import bcrypt from "bcryptjs";
+import { hashPassword, verifyPassword } from "@/lib/password";
 import { db } from "@/lib/db";
 import { users, settings } from "@/lib/db/schema";
 import { signToken, signPreAuthToken } from "@/lib/auth";
@@ -64,10 +64,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const user = db.select().from(users).where(eq(users.username, username)).get();
 
-    // Always run bcrypt to prevent timing-based username enumeration.
-    // For non-existent users, compare against a dummy hash so timing is consistent.
+    // Always run a hash comparison to prevent timing-based username enumeration.
+    // For non-existent users, compare against a dummy bcrypt hash so timing is consistent.
     const passwordHash = user?.passwordHash ?? "$2b$12$invalidhashforinvaliduser000000";
-    const valid = await bcrypt.compare(password, passwordHash);
+    const valid = await verifyPassword(password, passwordHash);
 
     // Reject non-existent or inactive accounts
     if (!user || user.isActive === 0) {
@@ -116,6 +116,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         { error: "Invalid username or password" },
         { status: 401 }
       );
+    }
+
+    // ── Transparent Argon2 upgrade ──────────────────────────────────────────
+    // If the stored hash is bcrypt, re-hash with Argon2id on successful login.
+    if (passwordHash.startsWith("$2b$") || passwordHash.startsWith("$2a$")) {
+      const upgraded = await hashPassword(password);
+      db.update(users).set({ passwordHash: upgraded }).where(eq(users.id, user.id)).run();
     }
 
     // ── IP allowlist check (local/password logins only) ─────────────────────

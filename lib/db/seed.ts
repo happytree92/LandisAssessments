@@ -1,6 +1,6 @@
 import { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { eq } from "drizzle-orm";
-import bcrypt from "bcryptjs";
+import { hashPassword, verifyPassword } from "../password";
 import * as schema from "./schema";
 import { securityQuestions, onboardingQuestions } from "../questions";
 
@@ -22,7 +22,7 @@ async function seedUsers(
   if (existing.length > 0) {
     const adminUser = existing.find((u) => u.username === DEFAULT_USERNAME);
     if (adminUser) {
-      const isDefault = await bcrypt.compare(DEFAULT_PASSWORD, adminUser.passwordHash);
+      const isDefault = await verifyPassword(DEFAULT_PASSWORD, adminUser.passwordHash);
       if (isDefault) {
         console.warn(
           "⚠️  WARNING: The default admin password has not been changed. " +
@@ -40,7 +40,7 @@ async function seedUsers(
     return;
   }
 
-  const passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, 12);
+  const passwordHash = await hashPassword(DEFAULT_PASSWORD);
   db.insert(schema.users)
     .values({
       username: DEFAULT_USERNAME,
