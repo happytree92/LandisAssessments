@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { ChangePasswordModal } from "./ChangePasswordModal";
 
 interface Props {
@@ -45,6 +46,13 @@ export function UserMenu({ displayName }: Props) {
 
         {open && (
           <div className="absolute right-0 top-full mt-1.5 w-48 rounded-md border border-neutral-200 bg-white shadow-lg z-30">
+            <Link
+              href="/account/security"
+              onClick={() => setOpen(false)}
+              className="block px-4 py-2.5 text-sm text-[#334155] hover:bg-neutral-50 transition-colors"
+            >
+              Account Security
+            </Link>
             <button
               onClick={() => { setOpen(false); setShowChangePassword(true); }}
               className="w-full text-left px-4 py-2.5 text-sm text-[#334155] hover:bg-neutral-50 transition-colors"

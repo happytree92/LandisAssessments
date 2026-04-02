@@ -7,14 +7,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
+type Step = "credentials" | "mfa";
+
 export default function LoginPage() {
   const router = useRouter();
+  const [step, setStep] = useState<Step>("credentials");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [mfaCode, setMfaCode] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
+  async function handleCredentials(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
     setLoading(true);
@@ -26,13 +30,50 @@ export default function LoginPage() {
         body: JSON.stringify({ username, password }),
       });
 
+      const data = await res.json();
+
+      if (res.ok) {
+        if (data.mfaRequired) {
+          // Password accepted, MFA needed
+          setStep("mfa");
+        } else {
+          router.push("/dashboard");
+          router.refresh();
+        }
+      } else {
+        setError(data.error ?? "Invalid username or password");
+      }
+    } catch {
+      setError("Unable to connect. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleMfa(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/auth/mfa/challenge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: mfaCode }),
+      });
+
+      const data = await res.json();
+
       if (res.ok) {
         router.push("/dashboard");
         router.refresh();
       } else {
-        const data = await res.json();
-        // Do not reveal which field was wrong
-        setError(data.error ?? "Invalid username or password");
+        if (res.status === 401 && data.error?.includes("expired")) {
+          // Pre-auth token expired — restart
+          setStep("credentials");
+          setMfaCode("");
+        }
+        setError(data.error ?? "Invalid code");
       }
     } catch {
       setError("Unable to connect. Please try again.");
@@ -56,51 +97,102 @@ export default function LoginPage() {
 
         <Card className="border border-neutral-200 shadow-sm rounded-lg">
           <CardHeader className="pb-4">
-            <h2 className="text-lg font-semibold text-[#1e293b]">Sign In</h2>
+            <h2 className="text-lg font-semibold text-[#1e293b]">
+              {step === "credentials" ? "Sign In" : "Two-Factor Authentication"}
+            </h2>
+            {step === "mfa" && (
+              <p className="text-sm text-[#94a3b8] mt-1">
+                Enter the 6-digit code from your authenticator app.
+              </p>
+            )}
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="username">Username</Label>
-                <Input
-                  id="username"
-                  type="text"
-                  autoComplete="username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  required
+            {step === "credentials" ? (
+              <form onSubmit={handleCredentials} className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="username">Username</Label>
+                  <Input
+                    id="username"
+                    type="text"
+                    autoComplete="username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    required
+                    disabled={loading}
+                    placeholder="admin"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    disabled={loading}
+                  />
+                </div>
+
+                {error && (
+                  <p className="text-sm text-[#ef4444] bg-red-50 border border-red-200 rounded px-3 py-2">
+                    {error}
+                  </p>
+                )}
+
+                <Button
+                  type="submit"
+                  className="w-full bg-[#1e40af] hover:bg-[#1e3a8a] text-white"
                   disabled={loading}
-                  placeholder="admin"
-                />
-              </div>
+                >
+                  {loading ? "Signing in…" : "Sign In"}
+                </Button>
+              </form>
+            ) : (
+              <form onSubmit={handleMfa} className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="mfa-code">Authenticator Code</Label>
+                  <Input
+                    id="mfa-code"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    value={mfaCode}
+                    onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    placeholder="000000"
+                    maxLength={6}
+                    required
+                    disabled={loading}
+                    autoFocus
+                    className="text-center text-lg tracking-widest"
+                  />
+                </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  disabled={loading}
-                />
-              </div>
+                {error && (
+                  <p className="text-sm text-[#ef4444] bg-red-50 border border-red-200 rounded px-3 py-2">
+                    {error}
+                  </p>
+                )}
 
-              {error && (
-                <p className="text-sm text-[#ef4444] bg-red-50 border border-red-200 rounded px-3 py-2">
-                  {error}
-                </p>
-              )}
+                <Button
+                  type="submit"
+                  className="w-full bg-[#1e40af] hover:bg-[#1e3a8a] text-white"
+                  disabled={loading || mfaCode.length !== 6}
+                >
+                  {loading ? "Verifying…" : "Verify Code"}
+                </Button>
 
-              <Button
-                type="submit"
-                className="w-full bg-[#1e40af] hover:bg-[#1e3a8a] text-white"
-                disabled={loading}
-              >
-                {loading ? "Signing in…" : "Sign In"}
-              </Button>
-            </form>
+                <button
+                  type="button"
+                  onClick={() => { setStep("credentials"); setError(""); setMfaCode(""); }}
+                  className="w-full text-sm text-[#94a3b8] hover:text-[#334155] transition-colors"
+                >
+                  Back to sign in
+                </button>
+              </form>
+            )}
           </CardContent>
         </Card>
       </div>

@@ -3,8 +3,8 @@ import bcrypt from "bcryptjs";
 import { eq, and, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { users, assessments, assessmentTokens } from "@/lib/db/schema";
-import { verifyToken } from "@/lib/auth";
 import { log } from "@/lib/logger";
+import { requireAdmin, isAuthError } from "@/lib/api-auth";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -13,16 +13,10 @@ export async function DELETE(
   req: NextRequest,
   { params }: RouteContext
 ): Promise<NextResponse> {
-  try {
-    const sessionCookie = req.cookies.get("session")?.value;
-    if (!sessionCookie) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const session = await verifyToken(sessionCookie);
-    if (session.role !== "admin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+  const session = await requireAdmin(req);
+  if (isAuthError(session)) return session;
 
+  try {
     const { id } = await params;
     const userId = parseInt(id, 10);
     if (isNaN(userId)) {
@@ -91,6 +85,9 @@ export async function PATCH(
   req: NextRequest,
   { params }: RouteContext
 ): Promise<NextResponse> {
+  const session = await requireAdmin(req);
+  if (isAuthError(session)) return session;
+
   try {
     const { id } = await params;
     const userId = parseInt(id, 10);
@@ -111,21 +108,11 @@ export async function PATCH(
     };
 
     // Prevent an admin from deactivating their own account
-    if (typeof body.isActive === "number" && body.isActive === 0) {
-      const token = req.cookies.get("session")?.value;
-      if (token) {
-        try {
-          const session = await verifyToken(token);
-          if (session.userId === userId) {
-            return NextResponse.json(
-              { error: "You cannot deactivate your own account" },
-              { status: 403 }
-            );
-          }
-        } catch {
-          // proceed
-        }
-      }
+    if (typeof body.isActive === "number" && body.isActive === 0 && session.userId === userId) {
+      return NextResponse.json(
+        { error: "You cannot deactivate your own account" },
+        { status: 403 }
+      );
     }
 
     const updates: Partial<typeof existing> = {};
@@ -148,10 +135,6 @@ export async function PATCH(
       );
     }
 
-    // Capture who is making the change (already have token from self-deactivation check above)
-    const adminToken = req.cookies.get("session")?.value;
-    const adminSession = adminToken ? await verifyToken(adminToken).catch(() => null) : null;
-
     const updated = db
       .update(users)
       .set(updates)
@@ -170,8 +153,8 @@ export async function PATCH(
         level: "warn",
         category: "user",
         action: "user.deactivated",
-        userId: adminSession?.userId,
-        username: adminSession?.username,
+        userId: session.userId,
+        username: session.username,
         resourceType: "user",
         resourceId: userId,
         metadata: { targetUsername: existing.username },
@@ -182,8 +165,8 @@ export async function PATCH(
         level: "warn",
         category: "user",
         action: "user.role_changed",
-        userId: adminSession?.userId,
-        username: adminSession?.username,
+        userId: session.userId,
+        username: session.username,
         resourceType: "user",
         resourceId: userId,
         metadata: { targetUsername: existing.username, previousRole: existing.role, newRole: body.role },

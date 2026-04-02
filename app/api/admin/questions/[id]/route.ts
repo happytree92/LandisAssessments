@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { questions } from "@/lib/db/schema";
+import { requireAdmin, isAuthError } from "@/lib/api-auth";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -10,6 +11,9 @@ export async function PATCH(
   req: NextRequest,
   { params }: RouteContext
 ): Promise<NextResponse> {
+  const session = await requireAdmin(req);
+  if (isAuthError(session)) return session;
+
   try {
     const { id } = await params;
     const questionId = parseInt(id, 10);

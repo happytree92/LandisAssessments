@@ -70,11 +70,9 @@ export default async function AssessmentResultsPage({ params }: Props) {
     .where(eq(customers.id, assessment.customerId))
     .get();
 
-  const conductor = db
-    .select()
-    .from(users)
-    .where(eq(users.id, assessment.conductedBy))
-    .get();
+  const conductor = assessment.conductedBy != null
+    ? db.select().from(users).where(eq(users.id, assessment.conductedBy)).get()
+    : undefined;
 
   const questions = getQuestionsForTemplate(assessment.templateId);
 

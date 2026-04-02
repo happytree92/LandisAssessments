@@ -1,50 +1,82 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 
-// Paths that don't require authentication
-// /assess/[token] — customer self-assessment (token IS the auth)
-// /assess/complete — static thank-you page
-// /api/assess/ — public token validation and submission endpoints
-const PUBLIC_PATHS = ["/login", "/api/auth/login", "/assess/", "/api/assess/"];
+/**
+ * Paths that require no authentication.
+ * All other paths require a valid session cookie.
+ */
+const PUBLIC_PREFIXES = [
+  "/login",
+  "/api/auth/login",
+  "/api/auth/logout",
+  "/api/auth/mfa/challenge", // second-factor during login (uses pre-auth cookie, not session)
+  "/api/assess",             // public customer self-assessment API
+  "/assess",                 // public customer self-assessment UI
+];
 
-function isPublic(pathname: string): boolean {
-  return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p));
+function isPublicPath(pathname: string): boolean {
+  return PUBLIC_PREFIXES.some(
+    (prefix) =>
+      pathname === prefix ||
+      pathname.startsWith(prefix + "/") ||
+      pathname.startsWith(prefix + "?")
+  );
 }
 
 export async function proxy(req: NextRequest): Promise<NextResponse> {
   const { pathname } = req.nextUrl;
 
-  if (isPublic(pathname)) {
+  if (isPublicPath(pathname)) {
     return NextResponse.next();
   }
 
   const token = req.cookies.get("session")?.value;
 
   if (!token) {
-    return NextResponse.redirect(new URL("/login", req.url));
+    return unauthenticated(req);
   }
 
   try {
-    // jose works in Edge runtime — no Node.js APIs needed here
-    const secret = new TextEncoder().encode(process.env.JWT_SECRET ?? "");
-    const { payload } = await jwtVerify(token, secret);
+    const secret = process.env.JWT_SECRET ?? "";
+    const { payload } = await jwtVerify(token, new TextEncoder().encode(secret));
 
-    // Admin routes require role = "admin"
+    // Admin pages/routes require role = "admin"
     const role = (payload as { role?: string }).role ?? "staff";
-    if (pathname.startsWith("/admin") && role !== "admin") {
-      return NextResponse.redirect(new URL("/403", req.url));
+    if (
+      (pathname.startsWith("/admin") || pathname.startsWith("/api/admin")) &&
+      role !== "admin"
+    ) {
+      if (pathname.startsWith("/api/")) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+      return NextResponse.redirect(new URL("/dashboard", req.url));
     }
 
     return NextResponse.next();
   } catch {
-    // Invalid or expired token — clear cookie and redirect
-    const response = NextResponse.redirect(new URL("/login", req.url));
+    // Invalid or expired token — clear cookie and redirect/401
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const url = req.nextUrl.clone();
+    url.pathname = "/login";
+    const response = NextResponse.redirect(url);
     response.cookies.delete("session");
     return response;
   }
 }
 
+function unauthenticated(req: NextRequest): NextResponse {
+  if (req.nextUrl.pathname.startsWith("/api/")) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const url = req.nextUrl.clone();
+  url.pathname = "/login";
+  return NextResponse.redirect(url);
+}
+
 export const config = {
-  // Match all paths except Next.js internals and static files
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon\\.ico|robots\\.txt|sitemap\\.xml).*)",
+  ],
 };

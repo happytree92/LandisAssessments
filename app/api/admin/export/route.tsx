@@ -10,6 +10,7 @@ import { getQuestionsForTemplate } from "@/lib/questions-db";
 import { buildSummary } from "@/lib/summary";
 import { AssessmentReport } from "@/components/pdf/AssessmentReport";
 import type { Answer } from "@/lib/scoring";
+import { requireAdmin, isAuthError } from "@/lib/api-auth";
 
 function safeFilename(name: string): string {
   return name.replace(/[^a-zA-Z0-9-]/g, "_").slice(0, 40);
@@ -32,6 +33,9 @@ function dateToUnixEnd(dateStr: string): number {
 // GET /api/admin/export?customerId=X&from=YYYY-MM-DD&to=YYYY-MM-DD
 // Returns a ZIP archive of PDF reports for all matching completed assessments.
 export async function GET(req: NextRequest): Promise<NextResponse> {
+  const session = await requireAdmin(req);
+  if (isAuthError(session)) return session;
+
   try {
     const { searchParams } = req.nextUrl;
     const customerIdParam = searchParams.get("customerId");
@@ -81,7 +85,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       if (!assessment.completedAt) continue;
 
       const customer = db.select().from(customers).where(eq(customers.id, assessment.customerId)).get();
-      const conductor = db.select().from(users).where(eq(users.id, assessment.conductedBy)).get();
+      const conductor = assessment.conductedBy != null
+        ? db.select().from(users).where(eq(users.id, assessment.conductedBy)).get()
+        : undefined;
       const templateRecord = db.select().from(templates).where(eq(templates.slug, assessment.templateId)).get();
 
       const questions = getQuestionsForTemplate(assessment.templateId);

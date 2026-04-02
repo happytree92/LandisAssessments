@@ -2,11 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { customers } from "@/lib/db/schema";
 import { desc } from "drizzle-orm";
-import { verifyToken } from "@/lib/auth";
 import { log } from "@/lib/logger";
+import { requireSession, isAuthError } from "@/lib/api-auth";
 
 // GET /api/customers — list all customers
-export async function GET(): Promise<NextResponse> {
+export async function GET(req: NextRequest): Promise<NextResponse> {
+  const session = await requireSession(req);
+  if (isAuthError(session)) return session;
+
   try {
     const rows = db
       .select()
@@ -23,9 +26,10 @@ export async function GET(): Promise<NextResponse> {
 
 // POST /api/customers — create a customer
 export async function POST(req: NextRequest): Promise<NextResponse> {
+  const session = await requireSession(req);
+  if (isAuthError(session)) return session;
+
   try {
-    const sessionCookie = req.cookies.get("session")?.value;
-    const session = sessionCookie ? await verifyToken(sessionCookie).catch(() => null) : null;
     const body = await req.json();
     const { name, contactName, contactEmail, notes } = body as {
       name: unknown;
@@ -57,8 +61,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       level: "info",
       category: "customer",
       action: "customer.created",
-      userId: session?.userId,
-      username: session?.username,
+      userId: session.userId,
+      username: session.username,
       resourceType: "customer",
       resourceId: result.id,
       metadata: { name: result.name },

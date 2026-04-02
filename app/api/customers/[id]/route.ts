@@ -2,13 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { customers, assessments, users } from "@/lib/db/schema";
-import { verifyToken } from "@/lib/auth";
 import { log } from "@/lib/logger";
+import { requireSession, isAuthError } from "@/lib/api-auth";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 // GET /api/customers/[id] — get customer with assessment history
-export async function GET(_req: NextRequest, { params }: RouteContext): Promise<NextResponse> {
+export async function GET(req: NextRequest, { params }: RouteContext): Promise<NextResponse> {
+  const session = await requireSession(req);
+  if (isAuthError(session)) return session;
+
   try {
     const { id } = await params;
     const customerId = parseInt(id, 10);
@@ -52,9 +55,10 @@ export async function GET(_req: NextRequest, { params }: RouteContext): Promise<
 
 // PATCH /api/customers/[id] — update customer
 export async function PATCH(req: NextRequest, { params }: RouteContext): Promise<NextResponse> {
+  const session = await requireSession(req);
+  if (isAuthError(session)) return session;
+
   try {
-    const sessionCookie = req.cookies.get("session")?.value;
-    const session = sessionCookie ? await verifyToken(sessionCookie).catch(() => null) : null;
     const { id } = await params;
     const customerId = parseInt(id, 10);
     if (isNaN(customerId)) {
@@ -95,8 +99,8 @@ export async function PATCH(req: NextRequest, { params }: RouteContext): Promise
       level: "info",
       category: "customer",
       action: "customer.updated",
-      userId: session?.userId,
-      username: session?.username,
+      userId: session.userId,
+      username: session.username,
       resourceType: "customer",
       resourceId: customerId,
       metadata: { name: updated.name },
@@ -111,9 +115,10 @@ export async function PATCH(req: NextRequest, { params }: RouteContext): Promise
 
 // DELETE /api/customers/[id] — delete customer (cascade assessments)
 export async function DELETE(req: NextRequest, { params }: RouteContext): Promise<NextResponse> {
+  const session = await requireSession(req);
+  if (isAuthError(session)) return session;
+
   try {
-    const sessionCookie = req.cookies.get("session")?.value;
-    const session = sessionCookie ? await verifyToken(sessionCookie).catch(() => null) : null;
     const { id } = await params;
     const customerId = parseInt(id, 10);
     if (isNaN(customerId)) {
@@ -135,8 +140,8 @@ export async function DELETE(req: NextRequest, { params }: RouteContext): Promis
       level: "warn",
       category: "customer",
       action: "customer.deleted",
-      userId: session?.userId,
-      username: session?.username,
+      userId: session.userId,
+      username: session.username,
       resourceType: "customer",
       resourceId: customerId,
       metadata: { name: customerName },

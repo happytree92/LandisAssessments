@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { settings } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { requireAdmin, isAuthError } from "@/lib/api-auth";
 
 const ALLOWED_TYPES: Record<string, string> = {
   "image/png": "data:image/png;base64,",
@@ -12,6 +13,9 @@ const MAX_BYTES = 2 * 1024 * 1024; // 2 MB
 
 // POST /api/admin/logo — multipart form-data with a "logo" file field
 export async function POST(req: NextRequest): Promise<NextResponse> {
+  const session = await requireAdmin(req);
+  if (isAuthError(session)) return session;
+
   try {
     const formData = await req.formData();
     const file = formData.get("logo");
@@ -57,7 +61,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 }
 
 // DELETE /api/admin/logo — remove the stored logo
-export async function DELETE(): Promise<NextResponse> {
+export async function DELETE(req: NextRequest): Promise<NextResponse> {
+  const session = await requireAdmin(req);
+  if (isAuthError(session)) return session;
+
   try {
     db.delete(settings).where(eq(settings.key, "org_logo")).run();
     return NextResponse.json({ ok: true });

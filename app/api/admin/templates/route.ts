@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { templates } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { requireAdmin, isAuthError } from "@/lib/api-auth";
 
 function toSlug(name: string): string {
   return name
@@ -12,7 +13,10 @@ function toSlug(name: string): string {
 }
 
 // GET /api/admin/templates — list all active templates
-export async function GET(): Promise<NextResponse> {
+export async function GET(req: NextRequest): Promise<NextResponse> {
+  const session = await requireAdmin(req);
+  if (isAuthError(session)) return session;
+
   try {
     const rows = db.select().from(templates).all();
     return NextResponse.json({ templates: rows });
@@ -24,6 +28,9 @@ export async function GET(): Promise<NextResponse> {
 
 // POST /api/admin/templates — create a new template
 export async function POST(req: NextRequest): Promise<NextResponse> {
+  const session = await requireAdmin(req);
+  if (isAuthError(session)) return session;
+
   try {
     const body = await req.json() as { name?: string; description?: string };
     const name = String(body.name ?? "").trim();

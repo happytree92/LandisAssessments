@@ -2,9 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { settings } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { requireAdmin, isAuthError } from "@/lib/api-auth";
 
 // GET /api/admin/settings — all key/value settings
-export async function GET(): Promise<NextResponse> {
+export async function GET(req: NextRequest): Promise<NextResponse> {
+  const session = await requireAdmin(req);
+  if (isAuthError(session)) return session;
+
   try {
     const rows = db.select().from(settings).all();
     const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
@@ -17,6 +21,9 @@ export async function GET(): Promise<NextResponse> {
 
 // POST /api/admin/settings — upsert a map of key/value pairs
 export async function POST(req: NextRequest): Promise<NextResponse> {
+  const session = await requireAdmin(req);
+  if (isAuthError(session)) return session;
+
   try {
     const body = await req.json() as Record<string, string>;
     const now = Math.floor(Date.now() / 1000);

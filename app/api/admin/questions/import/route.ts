@@ -3,6 +3,7 @@ import Papa from "papaparse";
 import { eq, and, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { questions, templates } from "@/lib/db/schema";
+import { requireAdmin, isAuthError } from "@/lib/api-auth";
 
 interface CsvRow {
   template: string;
@@ -16,6 +17,9 @@ interface CsvRow {
 
 // POST /api/admin/questions/import — upload a CSV file to upsert questions
 export async function POST(req: NextRequest): Promise<NextResponse> {
+  const session = await requireAdmin(req);
+  if (isAuthError(session)) return session;
+
   try {
     const formData = await req.formData();
     const file = formData.get("file") as File | null;

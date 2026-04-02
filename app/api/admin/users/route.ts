@@ -3,11 +3,14 @@ import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { verifyToken } from "@/lib/auth";
 import { log } from "@/lib/logger";
+import { requireAdmin, isAuthError } from "@/lib/api-auth";
 
 // GET /api/admin/users — list all users
-export async function GET(): Promise<NextResponse> {
+export async function GET(req: NextRequest): Promise<NextResponse> {
+  const session = await requireAdmin(req);
+  if (isAuthError(session)) return session;
+
   try {
     const rows = db
       .select({
@@ -16,6 +19,7 @@ export async function GET(): Promise<NextResponse> {
         displayName: users.displayName,
         role: users.role,
         isActive: users.isActive,
+        mfaEnabled: users.mfaEnabled,
         createdAt: users.createdAt,
       })
       .from(users)
@@ -29,9 +33,10 @@ export async function GET(): Promise<NextResponse> {
 
 // POST /api/admin/users — create a new user
 export async function POST(req: NextRequest): Promise<NextResponse> {
+  const session = await requireAdmin(req);
+  if (isAuthError(session)) return session;
+
   try {
-    const sessionCookie = req.cookies.get("session")?.value;
-    const session = sessionCookie ? await verifyToken(sessionCookie).catch(() => null) : null;
     const body = await req.json() as {
       username?: string;
       displayName?: string;
@@ -80,8 +85,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       level: "info",
       category: "user",
       action: "user.created",
-      userId: session?.userId,
-      username: session?.username,
+      userId: session.userId,
+      username: session.username,
       resourceType: "user",
       resourceId: created.id,
       metadata: { newUsername: created.username, role: created.role },

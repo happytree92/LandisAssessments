@@ -137,6 +137,8 @@ function createDb(): DB {
   // Schema migrations — add new columns to existing tables without dropping data
   addColumnIfMissing(sqlite, "users", "role", "TEXT NOT NULL DEFAULT 'staff'");
   addColumnIfMissing(sqlite, "users", "is_active", "INTEGER DEFAULT 1");
+  addColumnIfMissing(sqlite, "users", "mfa_secret", "TEXT");
+  addColumnIfMissing(sqlite, "users", "mfa_enabled", "INTEGER DEFAULT 0");
   addColumnIfMissing(sqlite, "assessments", "source", "TEXT DEFAULT 'staff'");
 
   // Migration: make assessments.conducted_by nullable to support user deletion

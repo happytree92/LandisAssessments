@@ -9,6 +9,9 @@ export const users = sqliteTable("users", {
   role: text("role").notNull().default("staff"),    // "admin" | "staff"
   isActive: integer("is_active").default(1),
   createdAt: integer("created_at"), // unix timestamp
+  // MFA (TOTP)
+  mfaSecret: text("mfa_secret"),                   // base32-encoded TOTP secret, null if MFA not set up
+  mfaEnabled: integer("mfa_enabled").default(0),   // 1 = MFA enforced on login
 });
 
 // MSP clients

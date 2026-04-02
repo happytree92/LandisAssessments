@@ -1,0 +1,64 @@
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { users } from "@/lib/db/schema";
+import { verifyToken } from "@/lib/auth";
+import { MfaPanel } from "@/components/account/MfaPanel";
+
+export const dynamic = "force-dynamic";
+
+export default async function AccountSecurityPage() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("session")?.value;
+  if (!token) redirect("/login");
+
+  let session;
+  try {
+    session = await verifyToken(token);
+  } catch {
+    redirect("/login");
+  }
+
+  const user = db.select().from(users).where(eq(users.id, session.userId)).get();
+  if (!user) redirect("/login");
+
+  return (
+    <div className="max-w-2xl mx-auto px-6 py-10 space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold text-[#0f172a]">Account Security</h1>
+        <p className="text-sm text-[#94a3b8] mt-1">
+          Manage authentication settings for{" "}
+          <span className="font-medium text-[#334155]">{user.displayName}</span>
+          {" "}({user.username})
+        </p>
+      </div>
+
+      {/* MFA section */}
+      <div className="rounded-lg border border-neutral-200 bg-white p-6 shadow-sm">
+        <h2 className="text-sm font-semibold text-[#334155] uppercase tracking-wide mb-1">
+          Authenticator App (TOTP)
+        </h2>
+        <p className="text-sm text-[#94a3b8] mb-5">
+          Use Google Authenticator, Authy, or any TOTP-compatible app to add a second
+          factor to your login.
+        </p>
+        <MfaPanel mfaEnabled={user.mfaEnabled === 1} />
+      </div>
+
+      {/* Change password reminder */}
+      <div className="rounded-lg border border-neutral-200 bg-white p-6 shadow-sm">
+        <h2 className="text-sm font-semibold text-[#334155] uppercase tracking-wide mb-1">
+          Password
+        </h2>
+        <p className="text-sm text-[#94a3b8]">
+          Change your password in{" "}
+          <a href="/admin/users" className="text-[#1e40af] hover:underline">
+            Admin → Users
+          </a>
+          .
+        </p>
+      </div>
+    </div>
+  );
+}

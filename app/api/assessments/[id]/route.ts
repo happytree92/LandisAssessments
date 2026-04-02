@@ -1,20 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { assessments, customers, users } from "@/lib/db/schema";
 import { calculateScore } from "@/lib/scoring";
 import { getQuestionsForTemplate } from "@/lib/questions-db";
-import { verifyToken } from "@/lib/auth";
 import { log } from "@/lib/logger";
+import { requireSession, requireAdmin, isAuthError } from "@/lib/api-auth";
 import type { AssessmentResult } from "@/lib/scoring";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 // GET /api/assessments/[id] — get assessment with customer info
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: RouteContext
 ): Promise<NextResponse> {
+  const session = await requireSession(req);
+  if (isAuthError(session)) return session;
+
   try {
     const { id } = await params;
     const assessmentId = parseInt(id, 10);
@@ -30,7 +33,7 @@ export async function GET(
       })
       .from(assessments)
       .leftJoin(customers, eq(assessments.customerId, customers.id))
-      .leftJoin(users, eq(assessments.conductedBy, users.id))
+      .leftJoin(users, sql`${assessments.conductedBy} = ${users.id}`)
       .where(eq(assessments.id, assessmentId))
       .get();
 
@@ -53,15 +56,10 @@ export async function DELETE(
   req: NextRequest,
   { params }: RouteContext
 ): Promise<NextResponse> {
+  const session = await requireAdmin(req);
+  if (isAuthError(session)) return session;
+
   try {
-    const sessionCookie = req.cookies.get("session")?.value;
-    if (!sessionCookie) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const session = await verifyToken(sessionCookie);
-    if (session.role !== "admin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
 
     const { id } = await params;
     const assessmentId = parseInt(id, 10);
@@ -104,9 +102,10 @@ export async function PATCH(
   req: NextRequest,
   { params }: RouteContext
 ): Promise<NextResponse> {
+  const session = await requireSession(req);
+  if (isAuthError(session)) return session;
+
   try {
-    const sessionCookie = req.cookies.get("session")?.value;
-    const session = sessionCookie ? await verifyToken(sessionCookie).catch(() => null) : null;
     const { id } = await params;
     const assessmentId = parseInt(id, 10);
     if (isNaN(assessmentId)) {
@@ -182,8 +181,8 @@ export async function PATCH(
       level: "info",
       category: "assessment",
       action: "assessment.completed",
-      userId: session?.userId,
-      username: session?.username,
+      userId: session.userId,
+      username: session.username,
       resourceType: "assessment",
       resourceId: assessmentId,
       metadata: { overallScore: overall, templateId: existing.templateId, customerId: existing.customerId },

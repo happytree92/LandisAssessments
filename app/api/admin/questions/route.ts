@@ -1,10 +1,14 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { questions, templates } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { requireAdmin, isAuthError } from "@/lib/api-auth";
 
 // GET /api/admin/questions — all questions with template info
-export async function GET(): Promise<NextResponse> {
+export async function GET(req: NextRequest): Promise<NextResponse> {
+  const session = await requireAdmin(req);
+  if (isAuthError(session)) return session;
+
   try {
     const rows = db
       .select({
