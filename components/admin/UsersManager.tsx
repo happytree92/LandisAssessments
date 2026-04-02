@@ -11,6 +11,8 @@ interface UserRow {
   displayName: string;
   role: string;
   isActive: number | null;
+  mfaEnabled: number | null;
+  mfaEnforced: number | null;
   createdAt: number | null;
   createdAtFormatted: string;
 }
@@ -92,9 +94,56 @@ function DeleteUserDialog({
 }
 
 export function UsersManager({ users, currentUserId }: Props) {
+  const router = useRouter();
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingUser, setEditingUser] = useState<UserRow | null>(null);
   const [deletingUser, setDeletingUser] = useState<UserRow | null>(null);
+  const [mfaActionLoading, setMfaActionLoading] = useState<number | null>(null);
+  const [mfaActionError, setMfaActionError] = useState<string | null>(null);
+
+  async function toggleMfaEnforced(user: UserRow) {
+    setMfaActionError(null);
+    setMfaActionLoading(user.id);
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mfaEnforced: user.mfaEnforced === 1 ? 0 : 1 }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setMfaActionError(data.error ?? "Failed to update MFA enforcement");
+        return;
+      }
+      router.refresh();
+    } catch {
+      setMfaActionError("Network error — please try again.");
+    } finally {
+      setMfaActionLoading(null);
+    }
+  }
+
+  async function resetMfa(user: UserRow) {
+    setMfaActionError(null);
+    setMfaActionLoading(user.id);
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mfaReset: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setMfaActionError(data.error ?? "Failed to reset MFA");
+        return;
+      }
+      router.refresh();
+    } catch {
+      setMfaActionError("Network error — please try again.");
+    } finally {
+      setMfaActionLoading(null);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -118,6 +167,12 @@ export function UsersManager({ users, currentUserId }: Props) {
         )}
       </div>
 
+      {mfaActionError && (
+        <p className="text-sm text-[#ef4444] bg-red-50 border border-red-200 rounded px-4 py-2">
+          {mfaActionError}
+        </p>
+      )}
+
       {/* Users table */}
       <div className="rounded-lg border border-neutral-200 bg-white shadow-sm overflow-hidden">
         <table className="w-full text-sm">
@@ -128,49 +183,91 @@ export function UsersManager({ users, currentUserId }: Props) {
               <th className="px-6 py-3 text-left text-xs font-semibold text-[#94a3b8] uppercase tracking-wide">Role</th>
               <th className="px-6 py-3 text-left text-xs font-semibold text-[#94a3b8] uppercase tracking-wide">Created</th>
               <th className="px-6 py-3 text-left text-xs font-semibold text-[#94a3b8] uppercase tracking-wide">Status</th>
+              <th className="px-6 py-3 text-left text-xs font-semibold text-[#94a3b8] uppercase tracking-wide">MFA</th>
               <th className="px-6 py-3" />
             </tr>
           </thead>
           <tbody className="divide-y divide-neutral-100">
-            {users.map((u) => (
-              <tr key={u.id} className={u.isActive === 0 ? "opacity-40" : ""}>
-                <td className="px-6 py-3 font-medium text-[#0f172a]">{u.displayName}</td>
-                <td className="px-6 py-3 text-[#334155] font-mono text-xs">{u.username}</td>
-                <td className="px-6 py-3">
-                  <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
-                    u.role === "admin"
-                      ? "bg-[#dbeafe] text-[#1e40af]"
-                      : "bg-neutral-100 text-[#334155]"
-                  }`}>
-                    {u.role}
-                  </span>
-                </td>
-                <td className="px-6 py-3 text-[#94a3b8]">{u.createdAtFormatted}</td>
-                <td className="px-6 py-3">
-                  <span className={`text-xs font-medium ${u.isActive === 0 ? "text-[#ef4444]" : "text-[#10b981]"}`}>
-                    {u.isActive === 0 ? "Inactive" : "Active"}
-                  </span>
-                </td>
-                <td className="px-6 py-3 text-right">
-                  <div className="flex items-center justify-end gap-3">
-                    <button
-                      onClick={() => setEditingUser(u)}
-                      className="text-sm text-[#1e40af] hover:underline"
-                    >
-                      Edit
-                    </button>
-                    {u.id !== currentUserId && (
-                      <button
-                        onClick={() => setDeletingUser(u)}
-                        className="text-sm text-[#ef4444] hover:underline"
-                      >
-                        Delete
-                      </button>
+            {users.map((u) => {
+              const mfaActive = u.mfaEnabled === 1;
+              const mfaForced = u.mfaEnforced === 1;
+              const isLoadingThis = mfaActionLoading === u.id;
+              return (
+                <tr key={u.id} className={u.isActive === 0 ? "opacity-40" : ""}>
+                  <td className="px-6 py-3 font-medium text-[#0f172a]">{u.displayName}</td>
+                  <td className="px-6 py-3 text-[#334155] font-mono text-xs">{u.username}</td>
+                  <td className="px-6 py-3">
+                    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
+                      u.role === "admin"
+                        ? "bg-[#dbeafe] text-[#1e40af]"
+                        : "bg-neutral-100 text-[#334155]"
+                    }`}>
+                      {u.role}
+                    </span>
+                  </td>
+                  <td className="px-6 py-3 text-[#94a3b8]">{u.createdAtFormatted}</td>
+                  <td className="px-6 py-3">
+                    <span className={`text-xs font-medium ${u.isActive === 0 ? "text-[#ef4444]" : "text-[#10b981]"}`}>
+                      {u.isActive === 0 ? "Inactive" : "Active"}
+                    </span>
+                  </td>
+                  <td className="px-6 py-3">
+                    {mfaActive ? (
+                      <span className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">
+                        Active
+                      </span>
+                    ) : mfaForced ? (
+                      <span className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
+                        Required
+                      </span>
+                    ) : (
+                      <span className="text-xs text-[#94a3b8]">—</span>
                     )}
-                  </div>
-                </td>
-              </tr>
-            ))}
+                  </td>
+                  <td className="px-6 py-3 text-right">
+                    <div className="flex items-center justify-end gap-3">
+                      <button
+                        onClick={() => setEditingUser(u)}
+                        className="text-sm text-[#1e40af] hover:underline"
+                      >
+                        Edit
+                      </button>
+                      {/* MFA actions — not shown for current user to avoid self-lockout */}
+                      {u.id !== currentUserId && (
+                        <>
+                          <button
+                            onClick={() => toggleMfaEnforced(u)}
+                            disabled={isLoadingThis}
+                            className={`text-sm hover:underline disabled:opacity-50 ${
+                              mfaForced ? "text-amber-700" : "text-[#334155]"
+                            }`}
+                            title={mfaForced ? "Remove MFA requirement" : "Require MFA for this user"}
+                          >
+                            {isLoadingThis ? "…" : mfaForced ? "Unenforce MFA" : "Enforce MFA"}
+                          </button>
+                          {mfaActive && (
+                            <button
+                              onClick={() => resetMfa(u)}
+                              disabled={isLoadingThis}
+                              className="text-sm text-[#94a3b8] hover:text-[#334155] hover:underline disabled:opacity-50"
+                              title="Clear TOTP secret so user must re-scan a new QR code"
+                            >
+                              Reset MFA
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setDeletingUser(u)}
+                            className="text-sm text-[#ef4444] hover:underline"
+                          >
+                            Delete
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

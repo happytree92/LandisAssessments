@@ -107,7 +107,26 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
 
     // ── MFA check ───────────────────────────────────────────────────────────
-    if (user.mfaEnabled === 1 && user.mfaSecret) {
+    const hasMfaSetUp = user.mfaEnabled === 1 && !!user.mfaSecret;
+    const isMfaEnforced = user.mfaEnforced === 1;
+
+    // Admin has required MFA but the user hasn't set it up yet — block login
+    if (isMfaEnforced && !hasMfaSetUp) {
+      log({
+        level: "warn",
+        category: "auth",
+        action: "login.mfa_required_not_set_up",
+        userId: user.id,
+        username: user.username,
+        ipAddress: ip,
+      });
+      return NextResponse.json(
+        { error: "MFA is required for your account but has not been set up. Contact your admin." },
+        { status: 403 }
+      );
+    }
+
+    if (hasMfaSetUp) {
       // Password is correct but MFA is required — issue a short-lived pre-auth token.
       // The full session cookie is only set after TOTP verification.
       const preAuthToken = await signPreAuthToken({

@@ -2,20 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { and, eq, gte, lte, like, desc, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { activityLogs } from "@/lib/db/schema";
-import { verifyToken } from "@/lib/auth";
+import { requireAdmin, isAuthError } from "@/lib/api-auth";
 
 // GET /api/admin/logs — admin only, paginated activity log query
 export async function GET(req: NextRequest): Promise<NextResponse> {
-  try {
-    const sessionCookie = req.cookies.get("session")?.value;
-    if (!sessionCookie) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const session = await verifyToken(sessionCookie);
-    if (session.role !== "admin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+  const session = await requireAdmin(req);
+  if (isAuthError(session)) return session;
 
+  try {
     const { searchParams } = req.nextUrl;
     const category = searchParams.get("category") ?? undefined;
     const level = searchParams.get("level") ?? undefined;

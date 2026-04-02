@@ -11,7 +11,8 @@ export const users = sqliteTable("users", {
   createdAt: integer("created_at"), // unix timestamp
   // MFA (TOTP)
   mfaSecret: text("mfa_secret"),                   // base32-encoded TOTP secret, null if MFA not set up
-  mfaEnabled: integer("mfa_enabled").default(0),   // 1 = MFA enforced on login
+  mfaEnabled: integer("mfa_enabled").default(0),   // 1 = user has completed TOTP setup
+  mfaEnforced: integer("mfa_enforced").default(0), // 1 = admin requires MFA for this account
 });
 
 // MSP clients

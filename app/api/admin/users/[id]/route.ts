@@ -105,6 +105,8 @@ export async function PATCH(
       role?: string;
       password?: string;
       isActive?: number;
+      mfaEnforced?: number;
+      mfaReset?: boolean;
     };
 
     // Prevent an admin from deactivating their own account
@@ -134,6 +136,13 @@ export async function PATCH(
         { status: 400 }
       );
     }
+    if (typeof body.mfaEnforced === "number") {
+      updates.mfaEnforced = body.mfaEnforced;
+    }
+    if (body.mfaReset === true) {
+      updates.mfaSecret = null;
+      updates.mfaEnabled = 0;
+    }
 
     const updated = db
       .update(users)
@@ -145,6 +154,8 @@ export async function PATCH(
         displayName: users.displayName,
         role: users.role,
         isActive: users.isActive,
+        mfaEnabled: users.mfaEnabled,
+        mfaEnforced: users.mfaEnforced,
       })
       .get();
 
@@ -170,6 +181,30 @@ export async function PATCH(
         resourceType: "user",
         resourceId: userId,
         metadata: { targetUsername: existing.username, previousRole: existing.role, newRole: body.role },
+      });
+    }
+    if (typeof body.mfaEnforced === "number") {
+      log({
+        level: "warn",
+        category: "user",
+        action: body.mfaEnforced === 1 ? "user.mfa_enforced" : "user.mfa_unenforced",
+        userId: session.userId,
+        username: session.username,
+        resourceType: "user",
+        resourceId: userId,
+        metadata: { targetUsername: existing.username },
+      });
+    }
+    if (body.mfaReset === true) {
+      log({
+        level: "warn",
+        category: "user",
+        action: "user.mfa_reset",
+        userId: session.userId,
+        username: session.username,
+        resourceType: "user",
+        resourceId: userId,
+        metadata: { targetUsername: existing.username },
       });
     }
 

@@ -139,6 +139,7 @@ function createDb(): DB {
   addColumnIfMissing(sqlite, "users", "is_active", "INTEGER DEFAULT 1");
   addColumnIfMissing(sqlite, "users", "mfa_secret", "TEXT");
   addColumnIfMissing(sqlite, "users", "mfa_enabled", "INTEGER DEFAULT 0");
+  addColumnIfMissing(sqlite, "users", "mfa_enforced", "INTEGER DEFAULT 0");
   addColumnIfMissing(sqlite, "assessments", "source", "TEXT DEFAULT 'staff'");
 
   // Migration: make assessments.conducted_by nullable to support user deletion

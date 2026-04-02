@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { verifyToken } from "@/lib/auth";
 import { MfaPanel } from "@/components/account/MfaPanel";
+import { ChangePasswordForm } from "@/components/account/ChangePasswordForm";
 
 export const dynamic = "force-dynamic";
 
@@ -46,18 +47,15 @@ export default async function AccountSecurityPage() {
         <MfaPanel mfaEnabled={user.mfaEnabled === 1} />
       </div>
 
-      {/* Change password reminder */}
+      {/* Change password */}
       <div className="rounded-lg border border-neutral-200 bg-white p-6 shadow-sm">
         <h2 className="text-sm font-semibold text-[#334155] uppercase tracking-wide mb-1">
-          Password
+          Change Password
         </h2>
-        <p className="text-sm text-[#94a3b8]">
-          Change your password in{" "}
-          <a href="/admin/users" className="text-[#1e40af] hover:underline">
-            Admin → Users
-          </a>
-          .
+        <p className="text-sm text-[#94a3b8] mb-5">
+          Enter your current password and choose a new one (minimum 8 characters).
         </p>
+        <ChangePasswordForm />
       </div>
     </div>
   );

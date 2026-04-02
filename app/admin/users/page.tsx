@@ -27,6 +27,8 @@ export default async function AdminUsersPage() {
       displayName: users.displayName,
       role: users.role,
       isActive: users.isActive,
+      mfaEnabled: users.mfaEnabled,
+      mfaEnforced: users.mfaEnforced,
       createdAt: users.createdAt,
     })
     .from(users)

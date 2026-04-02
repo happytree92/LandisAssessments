@@ -85,7 +85,12 @@ export function CustomerList({ customers }: { customers: CustomerRow[] }) {
               className="flex items-center justify-between px-5 py-4 hover:bg-neutral-50 transition-colors"
             >
               <div>
-                <p className="text-sm font-medium text-[#0f172a]">{c.name}</p>
+                <Link
+                  href={`/customers/${c.id}`}
+                  className="text-sm font-medium text-[#0f172a] hover:text-[#1e40af] hover:underline"
+                >
+                  {c.name}
+                </Link>
                 {c.contactName && (
                   <p className="text-xs text-[#94a3b8] mt-0.5">{c.contactName}</p>
                 )}
