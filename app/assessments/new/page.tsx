@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { customers, templates } from "@/lib/db/schema";
+import { isNull } from "drizzle-orm";
 import { NewAssessmentForm } from "@/components/assessments/NewAssessmentForm";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +13,7 @@ export default async function NewAssessmentPage({ searchParams }: Props) {
   const preselected = params.customerId ? parseInt(params.customerId, 10) : undefined;
 
   const allCustomers = db.select().from(customers).all();
-  const allTemplates = db.select().from(templates).all();
+  const allTemplates = db.select().from(templates).where(isNull(templates.deletedAt)).all();
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-10">

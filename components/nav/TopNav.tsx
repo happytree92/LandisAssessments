@@ -22,7 +22,7 @@ export async function TopNav() {
 
   const rows = db.select().from(settings).all();
   const settingsMap = Object.fromEntries(rows.map((r) => [r.key, r.value]));
-  const orgName = settingsMap["org_name"]?.trim() || "Landis Assessments";
+  const orgName = settingsMap["org_name"]?.trim() || "Assessments";
   const orgLogo = settingsMap["org_logo"] || null;
 
   return (

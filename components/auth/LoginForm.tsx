@@ -26,11 +26,12 @@ const SSO_ERRORS: Record<string, string> = {
 
 interface Props {
   ssoEnabled: boolean;
+  orgName?: string;
   initialStep?: Step;
   initialError?: string;
 }
 
-export function LoginForm({ ssoEnabled, initialStep = "credentials", initialError }: Props) {
+export function LoginForm({ ssoEnabled, orgName = "Assessments", initialStep = "credentials", initialError }: Props) {
   const router = useRouter();
   const [step, setStep] = useState<Step>(initialStep);
   const [username, setUsername] = useState("");
@@ -107,7 +108,7 @@ export function LoginForm({ ssoEnabled, initialStep = "credentials", initialErro
         {/* Wordmark */}
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-[#0f172a] tracking-tight">
-            Landis Assessments
+            {orgName}
           </h1>
           <p className="mt-1 text-sm text-[#94a3b8]">Internal staff portal</p>
         </div>

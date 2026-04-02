@@ -24,7 +24,7 @@ export function buildSummary(
       .map((q) => q.text)
       .join("; ");
     const suffix = top3
-      ? ` Landis IT recommends immediate action on: ${top3}.`
+      ? ` Your IT provider recommends immediate action on: ${top3}.`
       : "";
     return `Several high-priority gaps were identified.${suffix}`;
   }

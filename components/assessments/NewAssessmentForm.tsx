@@ -150,7 +150,7 @@ export function NewAssessmentForm({
           <Label>Assessment Template</Label>
 
           <div className="grid gap-3">
-            {templates.filter((t) => t.isActive !== 0).map((t) => (
+            {templates.filter((t) => t.isActive !== 0 && t.deletedAt === null).map((t) => (
               <Card
                 key={t.slug}
                 onClick={() => setTemplateId(t.slug)}

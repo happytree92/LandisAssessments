@@ -154,7 +154,7 @@ export default async function AssessmentResultsPage({ params }: Props) {
       {/* Consultative summary */}
       <div className="rounded-lg border border-neutral-200 bg-white p-6 shadow-sm">
         <h2 className="text-sm font-semibold text-[#334155] uppercase tracking-wide mb-2">
-          Landis IT Recommendation
+          Recommendation
         </h2>
         <p className="text-[#334155] leading-relaxed">{summary}</p>
       </div>

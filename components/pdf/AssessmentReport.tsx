@@ -280,7 +280,7 @@ export function AssessmentReport({
 
         {/* ── Consultative Summary ── */}
         <View style={s.summaryBox}>
-          <Text style={s.summaryTitle}>Landis IT Recommendation</Text>
+          <Text style={s.summaryTitle}>{orgName ? `${orgName} Recommendation` : "Recommendation"}</Text>
           <Text style={s.summaryText}>{summary}</Text>
         </View>
 

@@ -53,7 +53,8 @@ export const templates = sqliteTable("templates", {
   slug: text("slug").unique().notNull(),       // "security" | "onboarding"
   name: text("name").notNull(),                // "Security Assessment"
   description: text("description"),
-  isActive: integer("is_active").default(1),
+  isActive: integer("is_active").default(1),   // 1=active (visible in assessments), 0=draft (admin-only)
+  deletedAt: integer("deleted_at"),            // unix timestamp; null = not deleted; hard-deleted 30d after this
   createdAt: integer("created_at"),
 });
 

@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
-import { questions, templates } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { questions, templates, assessments } from "@/lib/db/schema";
+import { eq, and, isNotNull, lt, sql } from "drizzle-orm";
 import { QuestionsTable } from "@/components/admin/QuestionsTable";
 import { CSVImport } from "@/components/admin/CSVImport";
 import { NewTemplateForm } from "@/components/admin/NewTemplateForm";
@@ -8,7 +8,37 @@ import { NewTemplateForm } from "@/components/admin/NewTemplateForm";
 export const dynamic = "force-dynamic";
 
 export default async function AdminQuestionsPage() {
-  const rows = db
+  const nowSec = Math.floor(Date.now() / 1000);
+  const hardDeleteCutoff = nowSec - 30 * 86400;
+
+  // Hard-delete templates whose 30-day recovery window has expired
+  db.delete(templates)
+    .where(and(isNotNull(templates.deletedAt), lt(templates.deletedAt, hardDeleteCutoff)))
+    .run();
+
+  // Fetch all templates (including soft-deleted ones still in recovery window)
+  const allTemplates = db.select().from(templates).all();
+
+  // Count assessments per template slug (used to warn before deleting)
+  const assessmentCounts = db
+    .select({
+      templateId: assessments.templateId,
+      count: sql<number>`count(*)`,
+    })
+    .from(assessments)
+    .groupBy(assessments.templateId)
+    .all();
+  const countBySlug = Object.fromEntries(
+    assessmentCounts.map((r) => [r.templateId, r.count])
+  );
+
+  const templateRows = allTemplates.map((t) => ({
+    ...t,
+    assessmentCount: countBySlug[t.slug] ?? 0,
+  }));
+
+  // Fetch all questions joined with template info
+  const questionRows = db
     .select({
       id: questions.id,
       templateSlug: templates.slug,
@@ -75,7 +105,7 @@ export default async function AdminQuestionsPage() {
       </div>
 
       {/* Questions table */}
-      <QuestionsTable initialQuestions={rows} />
+      <QuestionsTable initialTemplates={templateRows} initialQuestions={questionRows} />
     </div>
   );
 }

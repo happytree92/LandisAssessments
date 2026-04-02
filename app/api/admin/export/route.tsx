@@ -76,7 +76,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
     const settingsRows = db.select().from(settings).all();
     const settingsMap = Object.fromEntries(settingsRows.map((r) => [r.key, r.value]));
-    const orgName = settingsMap["org_name"]?.trim() || "Landis Assessments";
+    const orgName = settingsMap["org_name"]?.trim() || "Assessments";
     const orgLogo = settingsMap["org_logo"] || null;
 
     const zip = new JSZip();

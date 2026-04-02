@@ -17,6 +17,19 @@ export default async function AdminSsoPage() {
     autoCreate: map["sso_auto_create_users"] !== "false",
   };
 
+  // Derive callbackUrl safely — getBaseUrl() throws if BASE_URL is not configured.
+  // The instrumentation startup hook prevents this in normal operation, but we
+  // handle it here too so a misconfigured dev environment shows a helpful message
+  // instead of a blank page.
+  let callbackUrl: string;
+  let baseUrlMissing = false;
+  try {
+    callbackUrl = `${getBaseUrl()}/api/auth/sso/callback`;
+  } catch {
+    callbackUrl = "";
+    baseUrlMissing = true;
+  }
+
   return (
     <div className="max-w-2xl mx-auto px-6 py-10 space-y-8">
       <div>
@@ -27,8 +40,27 @@ export default async function AdminSsoPage() {
         </p>
       </div>
 
+      {baseUrlMissing && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800 space-y-1">
+          <p className="font-semibold">BASE_URL is not configured</p>
+          <p>
+            Set <code className="font-mono text-xs bg-amber-100 px-1 rounded">BASE_URL</code> in
+            your <code className="font-mono text-xs bg-amber-100 px-1 rounded">.env</code> file or{" "}
+            <code className="font-mono text-xs bg-amber-100 px-1 rounded">docker-compose.yml</code>{" "}
+            to the public-facing HTTPS URL of this app. The SSO callback URL and share links
+            cannot be generated without it.
+          </p>
+        </div>
+      )}
+
       <div className="rounded-lg border border-neutral-200 bg-white p-6 shadow-sm">
-        <SsoSettings current={current} callbackUrl={`${getBaseUrl()}/api/auth/sso/callback`} />
+        {callbackUrl ? (
+          <SsoSettings current={current} callbackUrl={callbackUrl} />
+        ) : (
+          <p className="text-sm text-[#94a3b8]">
+            SSO settings are unavailable until BASE_URL is configured.
+          </p>
+        )}
       </div>
 
       <div className="rounded-lg border border-neutral-200 bg-white p-6 shadow-sm space-y-3">

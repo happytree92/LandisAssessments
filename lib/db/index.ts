@@ -144,6 +144,7 @@ function createDb(): DB {
   addColumnIfMissing(sqlite, "users", "sso_provider", "TEXT");
   addColumnIfMissing(sqlite, "users", "external_id", "TEXT");
   addColumnIfMissing(sqlite, "assessments", "source", "TEXT DEFAULT 'staff'");
+  addColumnIfMissing(sqlite, "templates", "deleted_at", "INTEGER");
 
   // Migration: make assessments.conducted_by nullable to support user deletion
   // SQLite doesn't support ALTER COLUMN, so we rebuild the table if needed.
@@ -236,16 +237,27 @@ function createDb(): DB {
     // Safe to ignore if table doesn't exist yet
   }
 
-  // Retention: delete logs older than 90 days, then log the cleanup
+  // Retention: delete logs older than the configured period, then log the cleanup
   try {
-    const retentionCutoff = nowSec - 90 * 24 * 60 * 60;
+    let retentionDays = 90;
+    try {
+      const retentionRow = sqlite.prepare(
+        `SELECT value FROM settings WHERE key = 'log_retention_days'`
+      ).get() as { value: string } | undefined;
+      if (retentionRow) {
+        const parsed = parseInt(retentionRow.value, 10);
+        if ([30, 90, 365].includes(parsed)) retentionDays = parsed;
+      }
+    } catch { /* settings table may not exist yet — use default */ }
+
+    const retentionCutoff = nowSec - retentionDays * 24 * 60 * 60;
     const deleted = sqlite.prepare(
       `DELETE FROM activity_logs WHERE timestamp < ? RETURNING id`
     ).all(retentionCutoff) as { id: number }[];
     if (deleted.length > 0) {
       sqlite.prepare(
         `INSERT INTO activity_logs (timestamp, level, category, action, metadata) VALUES (?, 'info', 'system', 'system.log_retention', ?)`
-      ).run(nowSec, JSON.stringify({ deletedCount: deleted.length }));
+      ).run(nowSec, JSON.stringify({ deletedCount: deleted.length, retentionDays }));
     }
   } catch {
     // Safe to ignore on first run

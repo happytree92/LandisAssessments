@@ -12,10 +12,22 @@ const inter = Inter({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Landis Assessments",
-  description: "Internal MSP staff tool for IT security and onboarding assessments",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  try {
+    const rows = db.select().from(settings).all();
+    const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+    const orgName = map["org_name"]?.trim() || "Assessments";
+    return {
+      title: orgName,
+      description: "Internal MSP staff tool for IT security and onboarding assessments",
+    };
+  } catch {
+    return {
+      title: "Assessments",
+      description: "Internal MSP staff tool for IT security and onboarding assessments",
+    };
+  }
+}
 
 const COLOR_DEFAULTS: Record<string, string> = {
   color_primary: "#1e40af",

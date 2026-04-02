@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { assessmentTokens, customers, templates } from "@/lib/db/schema";
+import { assessmentTokens, customers, templates, settings } from "@/lib/db/schema";
 import { getQuestionsForTemplate } from "@/lib/questions-db";
 import { PublicAssessmentForm } from "@/components/assess/PublicAssessmentForm";
 
@@ -43,6 +43,10 @@ export default async function PublicAssessPage({ params }: Props) {
 
   const customer = db.select().from(customers).where(eq(customers.id, record.customerId)).get();
   const template = db.select().from(templates).where(eq(templates.slug, record.templateId)).get();
+
+  const settingsRows = db.select().from(settings).all();
+  const settingsMap = Object.fromEntries(settingsRows.map((r) => [r.key, r.value]));
+  const orgName = settingsMap["org_name"]?.trim() || "Your IT Provider";
   const questions = getQuestionsForTemplate(record.templateId);
 
   // Only expose first name to the public page
@@ -61,7 +65,7 @@ export default async function PublicAssessPage({ params }: Props) {
       {/* Minimal header — no nav, no app chrome */}
       <header className="bg-white border-b border-neutral-200">
         <div className="max-w-3xl mx-auto px-6 py-4 flex items-center gap-3">
-          <span className="text-lg font-bold text-[#1e40af]">Landis IT</span>
+          <span className="text-lg font-bold text-[#1e40af]">{orgName}</span>
           <span className="text-neutral-300">|</span>
           <span className="text-sm text-[#94a3b8]">IT Assessment</span>
         </div>

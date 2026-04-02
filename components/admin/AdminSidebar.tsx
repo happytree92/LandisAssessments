@@ -11,12 +11,12 @@ const NAV_SECTIONS = [
       { href: "/admin/questions", label: "Questions" },
       { href: "/admin/branding", label: "Branding" },
       { href: "/admin/export", label: "Export" },
-      { href: "/admin/logs", label: "Logs" },
     ],
   },
   {
     section: "Security",
     items: [
+      { href: "/admin/logs", label: "Logs" },
       { href: "/admin/sso", label: "SSO Settings" },
       { href: "/admin/ip-allowlist", label: "IP Allowlist" },
       { href: "/admin/users", label: "Users" },

@@ -3,7 +3,8 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { and, eq, gte, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { activityLogs, assessments, users } from "@/lib/db/schema";
+import { activityLogs, assessments, users, settings } from "@/lib/db/schema";
+import { parseRetentionDays } from "@/lib/log-retention";
 
 function StatCard({
   label,
@@ -89,6 +90,12 @@ export default async function AdminDashboardPage() {
       })
     : "Unknown";
 
+  // Log retention setting
+  const settingsRows = db.select().from(settings).all();
+  const settingsMap = Object.fromEntries(settingsRows.map((r) => [r.key, r.value]));
+  const retentionDays = parseRetentionDays(settingsMap["log_retention_days"]);
+  const retentionLabel = retentionDays === 365 ? "1 year" : `${retentionDays} days`;
+
   // Active / total users
   const allUsers = db.select({ isActive: users.isActive }).from(users).all();
   const activeUsers = allUsers.filter(u => u.isActive !== 0).length;
@@ -140,7 +147,7 @@ export default async function AdminDashboardPage() {
           </div>
           <div className="flex gap-3">
             <dt className="text-[#94a3b8] w-36 shrink-0">Log retention</dt>
-            <dd className="text-[#334155]">90 days</dd>
+            <dd className="text-[#334155]">{retentionLabel}</dd>
           </div>
         </dl>
       </div>

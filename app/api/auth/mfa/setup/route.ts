@@ -10,7 +10,7 @@ import { eq } from "drizzle-orm";
 import { generateSecret, generateURI } from "otplib";
 import QRCode from "qrcode";
 import { db } from "@/lib/db";
-import { users } from "@/lib/db/schema";
+import { users, settings } from "@/lib/db/schema";
 import { requireSession, isAuthError } from "@/lib/api-auth";
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
@@ -18,10 +18,14 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   if (isAuthError(session)) return session;
 
   try {
+    const settingsRows = db.select().from(settings).all();
+    const settingsMap = Object.fromEntries(settingsRows.map((r) => [r.key, r.value]));
+    const issuer = settingsMap["org_name"]?.trim() || "Assessments";
+
     const secret = generateSecret();
     const otpAuthUrl = generateURI({
       label: session.username,
-      issuer: "Landis Assessments",
+      issuer,
       secret,
     });
     const qrDataUri = await QRCode.toDataURL(otpAuthUrl);

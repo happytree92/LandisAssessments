@@ -1,11 +1,24 @@
-// Static thank-you page — no nav, no links, no app chrome
-export default function AssessCompletePage() {
+export const dynamic = "force-dynamic";
+
+import { db } from "@/lib/db";
+import { settings } from "@/lib/db/schema";
+
+export default async function AssessCompletePage() {
+  let orgName = "Your IT Provider";
+  try {
+    const rows = db.select().from(settings).all();
+    const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+    orgName = map["org_name"]?.trim() || "Your IT Provider";
+  } catch {
+    // DB not available — use generic fallback
+  }
+
   return (
     <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center px-4">
       {/* Minimal header */}
       <div className="absolute top-0 left-0 right-0 bg-white border-b border-neutral-200">
         <div className="max-w-3xl mx-auto px-6 py-4">
-          <span className="text-lg font-bold text-[#1e40af]">Landis IT</span>
+          <span className="text-lg font-bold text-[#1e40af]">{orgName}</span>
         </div>
       </div>
 

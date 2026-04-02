@@ -129,13 +129,13 @@ export function OrgIdentityForm({ savedName, savedLogo }: Props) {
         <div className="space-y-1.5">
           <label className="block text-sm font-medium text-[#334155]">Organization Name</label>
           <p className="text-xs text-[#94a3b8]">
-            Shown in the nav header and on generated PDF reports. Falls back to &ldquo;Landis Assessments&rdquo; if left blank.
+            Shown in the nav header and on generated PDF reports. Falls back to &ldquo;Assessments&rdquo; if left blank.
           </p>
           <input
             type="text"
             value={orgName}
             onChange={(e) => setOrgName(e.target.value)}
-            placeholder="Landis Assessments"
+            placeholder="e.g. Acme IT Services"
             maxLength={80}
             className="w-full max-w-md rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1e40af]"
           />

@@ -19,10 +19,12 @@ export default async function LoginPage({
 
   // Read SSO enabled flag from DB — cheap single query
   let ssoEnabled = false;
+  let orgName = "Assessments";
   try {
     const rows = db.select().from(settings).all();
     const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
     ssoEnabled = map["sso_enabled"] === "true";
+    orgName = map["org_name"]?.trim() || "Assessments";
   } catch {
     // DB not ready yet on first boot — safe to ignore, SSO button will be hidden
   }
@@ -33,6 +35,7 @@ export default async function LoginPage({
   return (
     <LoginForm
       ssoEnabled={ssoEnabled}
+      orgName={orgName}
       initialStep={initialStep}
       initialError={initialError}
     />
