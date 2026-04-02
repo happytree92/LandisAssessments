@@ -143,6 +143,7 @@ function createDb(): DB {
   addColumnIfMissing(sqlite, "users", "email", "TEXT");
   addColumnIfMissing(sqlite, "users", "sso_provider", "TEXT");
   addColumnIfMissing(sqlite, "users", "external_id", "TEXT");
+  addColumnIfMissing(sqlite, "users", "password_changed_at", "INTEGER");
   addColumnIfMissing(sqlite, "assessments", "source", "TEXT DEFAULT 'staff'");
   addColumnIfMissing(sqlite, "templates", "deleted_at", "INTEGER");
 
@@ -230,9 +231,9 @@ function createDb(): DB {
 
   // Expire tokens where expiresAt < now and isActive = 1
   try {
-    sqlite.exec(
-      `UPDATE assessment_tokens SET is_active = 0 WHERE expires_at < ${nowSec} AND is_active = 1`
-    );
+    sqlite.prepare(
+      `UPDATE assessment_tokens SET is_active = 0 WHERE expires_at < ? AND is_active = 1`
+    ).run(nowSec);
   } catch {
     // Safe to ignore if table doesn't exist yet
   }

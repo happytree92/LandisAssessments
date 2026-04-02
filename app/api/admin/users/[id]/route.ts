@@ -138,6 +138,7 @@ export async function PATCH(
     }
     if (typeof body.password === "string" && body.password.length >= 8) {
       updates.passwordHash = await hashPassword(body.password);
+      updates.passwordChangedAt = Math.floor(Date.now() / 1000);
     } else if (typeof body.password === "string" && body.password.length > 0) {
       return NextResponse.json(
         { error: "Password must be at least 8 characters" },

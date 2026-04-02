@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq, or } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { users, settings } from "@/lib/db/schema";
-import { signToken, signPreAuthToken } from "@/lib/auth";
+import { signToken, signPreAuthToken, tokenFingerprint } from "@/lib/auth";
 import { log } from "@/lib/logger";
 import {
   discoverOidc,
@@ -87,12 +87,15 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     }
 
     // ── Find or create user ──────────────────────────────────────────────────
-    // 1. Match by externalId (sub) — most reliable; set on first SSO login
-    // 2. Fall back to email — links existing local accounts to SSO on first login
+    // Match ONLY by externalId (the OIDC sub claim) — a stable, provider-issued ID.
+    // Email-based fallback linking is intentionally excluded: if an IdP allows email
+    // changes, or if two providers issue the same email to different people, email
+    // matching would allow account takeover. Existing local accounts that have never
+    // done SSO will need an admin to set their externalId manually via the users table.
     let user = db
       .select()
       .from(users)
-      .where(or(eq(users.externalId, sub), eq(users.email, email)))
+      .where(eq(users.externalId, sub))
       .get();
 
     const now = Math.floor(Date.now() / 1000);
@@ -121,7 +124,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         .insert(users)
         .values({
           username,
-          passwordHash: "!", // invalid bcrypt hash — bcrypt.compare always returns false
+          passwordHash: "!", // invalid hash — verifyPassword always returns false
           displayName,
           email,
           role: "staff",
@@ -141,15 +144,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         username: user!.username,
         metadata: { email, provider: "oidc", sub },
       });
-    } else {
-      // Update externalId if this is their first SSO login (matched by email)
-      if (!user.externalId || user.externalId !== sub) {
-        db.update(users)
-          .set({ externalId: sub, ssoProvider: "oidc", email })
-          .where(eq(users.id, user.id))
-          .run();
-        user = { ...user, externalId: sub, ssoProvider: "oidc", email };
-      }
     }
 
     if (!user) {
@@ -210,6 +204,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       username: user.username,
       displayName: user.displayName,
       role: user.role ?? "staff",
+      pwdAt: user.passwordChangedAt ?? undefined,
     });
 
     log({
@@ -218,7 +213,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       action: "sso.login.success",
       userId: user.id,
       username: user.username,
-      metadata: { email, provider: "oidc" },
+      metadata: { email, provider: "oidc", tokenFingerprint: tokenFingerprint(token) },
     });
 
     const response = NextResponse.redirect(new URL("/dashboard", req.url));

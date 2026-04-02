@@ -1,10 +1,25 @@
 import { SignJWT, jwtVerify } from "jose";
+import { createHash } from "crypto";
 
 export interface SessionPayload {
   userId: number;
   username: string;
   displayName: string;
   role: string; // "admin" | "staff"
+  /**
+   * Mirrors users.password_changed_at at the time the token was signed.
+   * requireSession validates this against the DB to invalidate sessions after
+   * a password change. Absent on tokens issued before this field was added.
+   */
+  pwdAt?: number;
+}
+
+/**
+ * Returns the first 16 hex chars of SHA-256(token).
+ * Safe to store in logs — identifies a session without exposing the token.
+ */
+export function tokenFingerprint(token: string): string {
+  return createHash("sha256").update(token).digest("hex").slice(0, 16);
 }
 
 /**

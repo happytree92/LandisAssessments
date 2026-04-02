@@ -17,6 +17,8 @@ export const users = sqliteTable("users", {
   email: text("email"),                            // from OIDC claims; used for SSO user matching
   ssoProvider: text("sso_provider"),               // "oidc" | null — null means local-only account
   externalId: text("external_id"),                 // OIDC sub claim — stable identifier from provider
+  // Session invalidation
+  passwordChangedAt: integer("password_changed_at"), // unix timestamp; updated on every password change; sessions issued before this are rejected
 });
 
 // MSP clients

@@ -37,8 +37,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       .run();
 
     return NextResponse.json({
-      secret,      // show to user in case they want to enter manually
-      qrDataUri,   // base64 PNG data URI for display
+      qrDataUri, // base64 PNG data URI for display
+      // secret intentionally omitted — call GET /api/auth/mfa/setup/secret to retrieve it on demand
     });
   } catch (err) {
     console.error("[mfa/setup]", err);

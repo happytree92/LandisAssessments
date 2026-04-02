@@ -12,7 +12,7 @@ import { eq } from "drizzle-orm";
 import { verifySync } from "otplib";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
-import { verifyPreAuthToken, signToken } from "@/lib/auth";
+import { verifyPreAuthToken, signToken, tokenFingerprint } from "@/lib/auth";
 import { log } from "@/lib/logger";
 import { recordLoginSuccess, recordLoginFailure } from "@/lib/login-rate-limit";
 
@@ -79,6 +79,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       username: user.username,
       displayName: user.displayName,
       role: user.role ?? "staff",
+      pwdAt: user.passwordChangedAt ?? undefined,
     });
 
     recordLoginSuccess(ip, user.username);
@@ -90,7 +91,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       userId: user.id,
       username: user.username,
       ipAddress: ip,
-      metadata: { mfa: true },
+      metadata: { mfa: true, tokenFingerprint: tokenFingerprint(token) },
     });
 
     const response = NextResponse.json({

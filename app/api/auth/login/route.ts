@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { db } from "@/lib/db";
 import { users, settings } from "@/lib/db/schema";
-import { signToken, signPreAuthToken } from "@/lib/auth";
+import { signToken, signPreAuthToken, tokenFingerprint } from "@/lib/auth";
 import { log } from "@/lib/logger";
 import {
   checkLoginRateLimit,
@@ -69,8 +69,44 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const passwordHash = user?.passwordHash ?? "$2b$12$invalidhashforinvaliduser000000";
     const valid = await verifyPassword(password, passwordHash);
 
-    // Reject non-existent or inactive accounts
-    if (!user || user.isActive === 0) {
+    // Check order matters for security — hash always runs first (above) for constant-time
+    // behaviour, then we evaluate the result in this order:
+    //   1. User doesn't exist            → generic error (timing-safe: dummy hash ran)
+    //   2. Wrong password                → generic error (no enumeration of account state)
+    //   3. Account inactive              → generic error (no hint that account exists)
+    //   4. SSO account tried local login → generic error
+
+    if (!user) {
+      recordLoginFailure(ip, username);
+      log({
+        level: "warn",
+        category: "auth",
+        action: "login.failed",
+        ipAddress: ip,
+        metadata: { attemptedUsername: username },
+      });
+      return NextResponse.json(
+        { error: "Invalid username or password" },
+        { status: 401 }
+      );
+    }
+
+    if (!valid) {
+      recordLoginFailure(ip, username);
+      log({
+        level: "warn",
+        category: "auth",
+        action: "login.failed",
+        ipAddress: ip,
+        metadata: { attemptedUsername: username },
+      });
+      return NextResponse.json(
+        { error: "Invalid username or password" },
+        { status: 401 }
+      );
+    }
+
+    if (user.isActive === 0) {
       recordLoginFailure(ip, username);
       log({
         level: "warn",
@@ -95,22 +131,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         userId: user.id,
         username: user.username,
         ipAddress: ip,
-      });
-      return NextResponse.json(
-        { error: "Invalid username or password" },
-        { status: 401 }
-      );
-    }
-
-    // Reject wrong password for local accounts
-    if (!valid) {
-      recordLoginFailure(ip, username);
-      log({
-        level: "warn",
-        category: "auth",
-        action: "login.failed",
-        ipAddress: ip,
-        metadata: { attemptedUsername: username },
       });
       return NextResponse.json(
         { error: "Invalid username or password" },
@@ -196,6 +216,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       username: user.username,
       displayName: user.displayName,
       role: user.role ?? "staff",
+      pwdAt: user.passwordChangedAt ?? undefined,
     });
 
     recordLoginSuccess(ip, username);
@@ -207,6 +228,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       userId: user.id,
       username: user.username,
       ipAddress: ip,
+      metadata: { tokenFingerprint: tokenFingerprint(token) },
     });
 
     const response = NextResponse.json({

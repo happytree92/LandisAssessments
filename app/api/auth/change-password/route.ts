@@ -45,7 +45,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
 
     const passwordHash = await hashPassword(body.newPassword);
-    db.update(users).set({ passwordHash }).where(eq(users.id, user.id)).run();
+    const passwordChangedAt = Math.floor(Date.now() / 1000);
+    db.update(users).set({ passwordHash, passwordChangedAt }).where(eq(users.id, user.id)).run();
 
     log({
       level: "info",

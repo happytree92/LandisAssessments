@@ -16,6 +16,7 @@ export function MfaPanel({ mfaEnabled: initialEnabled }: MfaPanelProps) {
   const [setupState, setSetupState] = useState<SetupState>("idle");
   const [qrDataUri, setQrDataUri] = useState<string | null>(null);
   const [secret, setSecret] = useState<string | null>(null);
+  const [secretLoading, setSecretLoading] = useState(false);
   const [verifyCode, setVerifyCode] = useState("");
   const [disablePassword, setDisablePassword] = useState("");
   const [error, setError] = useState("");
@@ -31,7 +32,7 @@ export function MfaPanel({ mfaEnabled: initialEnabled }: MfaPanelProps) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to start MFA setup");
       setQrDataUri(data.qrDataUri);
-      setSecret(data.secret);
+      setSecret(null); // revealed on demand via separate request
       setSetupState("scanning");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to start setup");
@@ -83,6 +84,20 @@ export function MfaPanel({ mfaEnabled: initialEnabled }: MfaPanelProps) {
       setError(err instanceof Error ? err.message : "Failed to disable MFA");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function revealSecret() {
+    setSecretLoading(true);
+    try {
+      const res = await fetch("/api/auth/mfa/setup/secret");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to retrieve secret");
+      setSecret(data.secret);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to retrieve secret");
+    } finally {
+      setSecretLoading(false);
     }
   }
 
@@ -157,16 +172,25 @@ export function MfaPanel({ mfaEnabled: initialEnabled }: MfaPanelProps) {
             </p>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={qrDataUri} alt="MFA QR Code" className="w-40 h-40 rounded" />
-            {secret && (
-              <div>
-                <p className="text-xs text-[#94a3b8] mb-1">
-                  Can&apos;t scan? Enter this key manually:
-                </p>
+            <div>
+              <p className="text-xs text-[#94a3b8] mb-1">
+                Can&apos;t scan? Enter the key manually:
+              </p>
+              {secret ? (
                 <code className="text-xs bg-neutral-100 border border-neutral-200 rounded px-2 py-1 font-mono select-all">
                   {secret}
                 </code>
-              </div>
-            )}
+              ) : (
+                <button
+                  type="button"
+                  onClick={revealSecret}
+                  disabled={secretLoading}
+                  className="text-xs text-[#1e40af] hover:underline disabled:opacity-50"
+                >
+                  {secretLoading ? "Loading…" : "Show manual entry code"}
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="space-y-2">
