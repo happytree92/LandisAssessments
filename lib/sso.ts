@@ -10,6 +10,7 @@
  */
 
 import { createRemoteJWKSet, jwtVerify } from "jose";
+import { getBaseUrl } from "@/lib/config";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -166,12 +167,6 @@ export async function extractClaims(
 
 // ─── Redirect URI ─────────────────────────────────────────────────────────────
 
-export function getSsoCallbackUrl(req: { headers: { get(name: string): string | null } }): string {
-  const appUrl = process.env.APP_URL;
-  if (appUrl) return `${appUrl.replace(/\/$/, "")}/api/auth/sso/callback`;
-
-  // Derive from the incoming request when APP_URL is not set
-  const host = req.headers.get("host") ?? "localhost:3000";
-  const proto = req.headers.get("x-forwarded-proto") ?? "http";
-  return `${proto}://${host}/api/auth/sso/callback`;
+export function getSsoCallbackUrl(): string {
+  return `${getBaseUrl()}/api/auth/sso/callback`;
 }

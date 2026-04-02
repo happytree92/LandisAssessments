@@ -47,13 +47,16 @@ export function IpAllowlistForm({ saved }: Props) {
     <form onSubmit={handleSave} className="space-y-4">
       <div className="space-y-1.5">
         <label className="block text-sm font-medium text-[#334155]">
-          Admin IP Allowlist
+          Allowed IP Addresses
         </label>
         <p className="text-xs text-[#94a3b8]">
-          When configured, admin accounts can only log in from these IP addresses.
-          Leave empty to allow logins from any IP.
-          Enter comma-separated IPs (e.g.{" "}
+          When configured, local username/password logins are only permitted from these IP
+          addresses. Leave empty to allow logins from any IP. Enter comma-separated IPs (e.g.{" "}
           <span className="font-mono">203.0.113.10, 198.51.100.5</span>).
+        </p>
+        <p className="text-xs text-[#94a3b8]">
+          SSO users are not affected by this setting — their access is controlled by your
+          identity provider.
         </p>
         {currentIps.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-2">

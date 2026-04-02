@@ -2,13 +2,11 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { cookies } from "next/headers";
-import { isNotNull } from "drizzle-orm";
+import { isNotNull, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { customers, assessments } from "@/lib/db/schema";
 import { verifyToken } from "@/lib/auth";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { CustomerList } from "@/components/dashboard/CustomerList";
 import { ScoreTrendline } from "@/components/dashboard/ScoreTrendline";
 
 function startOfMonthUnix(): number {
@@ -31,7 +29,6 @@ function buildMonthlyTrend(
     const monthEnd = Math.floor(new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59).getTime() / 1000);
     const label = d.toLocaleDateString("en-US", { month: "short" });
 
-    // All assessments completed in this month
     const inMonth = completedAssessments.filter(
       (a) => a.completedAt !== null && a.completedAt >= monthStart && a.completedAt <= monthEnd
     );
@@ -41,7 +38,6 @@ function buildMonthlyTrend(
       continue;
     }
 
-    // For each customer, keep only their most recent assessment within the month
     const latestPerCustomer = new Map<number, { score: number; completedAt: number }>();
     for (const a of inMonth) {
       if (a.completedAt === null) continue;
@@ -57,6 +53,35 @@ function buildMonthlyTrend(
   }
 
   return months;
+}
+
+function formatDate(unix: number | null): string {
+  if (!unix) return "—";
+  return new Date(unix * 1000).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function templateLabel(templateId: string): string {
+  if (templateId === "security") return "Security Assessment";
+  if (templateId === "onboarding") return "Onboarding Assessment";
+  return templateId;
+}
+
+function ScoreBadge({ score }: { score: number }) {
+  const color =
+    score >= 75
+      ? "bg-[#10b981] text-white"
+      : score >= 50
+      ? "bg-[#f59e0b] text-white"
+      : "bg-[#ef4444] text-white";
+  return (
+    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${color}`}>
+      {score}
+    </span>
+  );
 }
 
 export default async function DashboardPage() {
@@ -87,20 +112,21 @@ export default async function DashboardPage() {
 
   const monthlyTrend = buildMonthlyTrend(completedAssessments);
 
-  // All customers with their latest assessment
-  const allCustomers = db.select().from(customers).all();
-
-  const customerRows = allCustomers.map((c) => {
-    const latest = completedAssessments
-      .filter((a) => a.customerId === c.id)
-      .sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0))[0];
-    return {
-      id: c.id,
-      name: c.name,
-      contactName: c.contactName,
-      latest: latest ? { overallScore: latest.overallScore, completedAt: latest.completedAt } : null,
-    };
-  });
+  // 3 most recent completed assessments with customer name
+  const recentAssessments = db
+    .select({
+      id: assessments.id,
+      overallScore: assessments.overallScore,
+      templateId: assessments.templateId,
+      completedAt: assessments.completedAt,
+      customerName: customers.name,
+    })
+    .from(assessments)
+    .innerJoin(customers, eq(assessments.customerId, customers.id))
+    .where(isNotNull(assessments.completedAt))
+    .orderBy(desc(assessments.completedAt))
+    .limit(3)
+    .all();
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-10">
@@ -131,7 +157,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Score trend */}
-      <Card className="border border-neutral-200 shadow-sm rounded-lg mb-10">
+      <Card className="border border-neutral-200 shadow-sm rounded-lg mb-8">
         <CardContent className="pt-5 pb-4">
           <div className="flex items-center justify-between mb-3">
             <div>
@@ -155,32 +181,36 @@ export default async function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Customers with search + sort */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-semibold text-[#334155] uppercase tracking-wide">
-            Customers
-          </h2>
-          <Link
-            href="/customers/new"
-            className="text-sm text-[#1e40af] hover:underline font-medium"
-          >
-            + Add Customer
-          </Link>
-        </div>
-        <CustomerList customers={customerRows} />
-      </div>
-
-      {/* CTAs */}
-      <div className="flex gap-3">
-        <Link href="/customers">
-          <Button className="bg-[#1e40af] hover:bg-[#1e3a8a] text-white">
-            View All Customers
-          </Button>
-        </Link>
-        <Link href="/customers/new">
-          <Button variant="outline">Add Customer</Button>
-        </Link>
+      {/* Recent assessments */}
+      <div>
+        <h2 className="text-sm font-semibold text-[#334155] uppercase tracking-wide mb-3">
+          Recent Assessments
+        </h2>
+        {recentAssessments.length === 0 ? (
+          <Card className="border border-neutral-200 shadow-sm rounded-lg">
+            <CardContent className="py-10 text-center">
+              <p className="text-sm text-[#94a3b8]">No assessments completed yet.</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="rounded-lg border border-neutral-200 bg-white shadow-sm divide-y divide-neutral-100">
+            {recentAssessments.map((a) => (
+              <Link
+                key={a.id}
+                href={`/assessments/${a.id}`}
+                className="flex items-center justify-between px-5 py-4 hover:bg-neutral-50 transition-colors"
+              >
+                <div>
+                  <p className="text-sm font-medium text-[#0f172a]">{a.customerName}</p>
+                  <p className="text-xs text-[#94a3b8] mt-0.5">
+                    {templateLabel(a.templateId)} · {formatDate(a.completedAt)}
+                  </p>
+                </div>
+                <ScoreBadge score={a.overallScore} />
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

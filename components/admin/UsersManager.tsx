@@ -13,6 +13,7 @@ interface UserRow {
   isActive: number | null;
   mfaEnabled: number | null;
   mfaEnforced: number | null;
+  ssoProvider: string | null;
   createdAt: number | null;
   createdAtFormatted: string;
 }
@@ -180,6 +181,7 @@ export function UsersManager({ users, currentUserId }: Props) {
             <tr className="bg-neutral-50 border-b border-neutral-100">
               <th className="px-6 py-3 text-left text-xs font-semibold text-[#94a3b8] uppercase tracking-wide">Name</th>
               <th className="px-6 py-3 text-left text-xs font-semibold text-[#94a3b8] uppercase tracking-wide">Username</th>
+              <th className="px-6 py-3 text-left text-xs font-semibold text-[#94a3b8] uppercase tracking-wide">Auth</th>
               <th className="px-6 py-3 text-left text-xs font-semibold text-[#94a3b8] uppercase tracking-wide">Role</th>
               <th className="px-6 py-3 text-left text-xs font-semibold text-[#94a3b8] uppercase tracking-wide">Created</th>
               <th className="px-6 py-3 text-left text-xs font-semibold text-[#94a3b8] uppercase tracking-wide">Status</th>
@@ -196,6 +198,20 @@ export function UsersManager({ users, currentUserId }: Props) {
                 <tr key={u.id} className={u.isActive === 0 ? "opacity-40" : ""}>
                   <td className="px-6 py-3 font-medium text-[#0f172a]">{u.displayName}</td>
                   <td className="px-6 py-3 text-[#334155] font-mono text-xs">{u.username}</td>
+                  <td className="px-6 py-3">
+                    {u.ssoProvider ? (
+                      <span
+                        className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-800"
+                        title="Authenticates via SSO — no local password"
+                      >
+                        SSO
+                      </span>
+                    ) : (
+                      <span className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-neutral-100 text-[#334155]">
+                        Local
+                      </span>
+                    )}
+                  </td>
                   <td className="px-6 py-3">
                     <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
                       u.role === "admin"
@@ -279,6 +295,7 @@ export function UsersManager({ users, currentUserId }: Props) {
           onClose={() => setEditingUser(null)}
         />
       )}
+
 
       {deletingUser && (
         <DeleteUserDialog

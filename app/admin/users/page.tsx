@@ -29,6 +29,7 @@ export default async function AdminUsersPage() {
       isActive: users.isActive,
       mfaEnabled: users.mfaEnabled,
       mfaEnforced: users.mfaEnforced,
+      ssoProvider: users.ssoProvider,
       createdAt: users.createdAt,
     })
     .from(users)
@@ -36,6 +37,7 @@ export default async function AdminUsersPage() {
 
   const rows = allUsers.map((u) => ({
     ...u,
+    ssoProvider: u.ssoProvider ?? null,
     createdAtFormatted: formatDate(u.createdAt),
   }));
 

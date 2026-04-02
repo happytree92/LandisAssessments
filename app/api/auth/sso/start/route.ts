@@ -34,7 +34,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const discovery = await discoverOidc(providerUrl);
     const { verifier, challenge } = await generatePkce();
     const state = generateState();
-    const redirectUri = getSsoCallbackUrl(req);
+    const redirectUri = getSsoCallbackUrl();
 
     const authUrl = buildAuthUrl(discovery, clientId, redirectUri, state, challenge);
 

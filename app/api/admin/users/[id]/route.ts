@@ -109,6 +109,14 @@ export async function PATCH(
       mfaReset?: boolean;
     };
 
+    // Block password changes for SSO accounts — they have no local credential
+    if (typeof body.password === "string" && body.password.length > 0 && existing.ssoProvider) {
+      return NextResponse.json(
+        { error: "Cannot set a password for SSO accounts." },
+        { status: 400 }
+      );
+    }
+
     // Prevent an admin from deactivating their own account
     if (typeof body.isActive === "number" && body.isActive === 0 && session.userId === userId) {
       return NextResponse.json(

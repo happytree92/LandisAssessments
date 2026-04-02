@@ -64,12 +64,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const user = db.select().from(users).where(eq(users.username, username)).get();
 
-    // Use a constant-time comparison path regardless of whether the user exists
-    // to avoid username enumeration via timing
+    // Always run bcrypt to prevent timing-based username enumeration.
+    // For non-existent users, compare against a dummy hash so timing is consistent.
     const passwordHash = user?.passwordHash ?? "$2b$12$invalidhashforinvaliduser000000";
     const valid = await bcrypt.compare(password, passwordHash);
 
-    if (!user || !valid || user.isActive === 0) {
+    // Reject non-existent or inactive accounts
+    if (!user || user.isActive === 0) {
       recordLoginFailure(ip, username);
       log({
         level: "warn",
@@ -84,8 +85,42 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // ── IP allowlist check for admin accounts ───────────────────────────────
-    if (user.role === "admin") {
+    // SSO accounts must authenticate via SSO — local credential login is blocked
+    if (user.ssoProvider) {
+      recordLoginFailure(ip, username);
+      log({
+        level: "warn",
+        category: "auth",
+        action: "login.sso_account_local_attempt",
+        userId: user.id,
+        username: user.username,
+        ipAddress: ip,
+      });
+      return NextResponse.json(
+        { error: "Invalid username or password" },
+        { status: 401 }
+      );
+    }
+
+    // Reject wrong password for local accounts
+    if (!valid) {
+      recordLoginFailure(ip, username);
+      log({
+        level: "warn",
+        category: "auth",
+        action: "login.failed",
+        ipAddress: ip,
+        metadata: { attemptedUsername: username },
+      });
+      return NextResponse.json(
+        { error: "Invalid username or password" },
+        { status: 401 }
+      );
+    }
+
+    // ── IP allowlist check (local/password logins only) ─────────────────────
+    // SSO users never reach this route — they authenticate via /api/auth/sso/callback.
+    {
       const settingsRows = db.select().from(settings).all();
       const settingsMap = Object.fromEntries(settingsRows.map((r) => [r.key, r.value]));
       const allowlistRaw = settingsMap["admin_ip_allowlist"] ?? "";

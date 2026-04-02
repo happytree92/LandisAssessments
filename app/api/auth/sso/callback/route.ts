@@ -63,7 +63,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
     // ── Exchange code for tokens ─────────────────────────────────────────────
     const discovery = await discoverOidc(providerUrl);
-    const redirectUri = getSsoCallbackUrl(req);
+    const redirectUri = getSsoCallbackUrl();
     const tokens = await exchangeCode(
       discovery,
       clientId,

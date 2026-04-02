@@ -11,9 +11,10 @@ interface Props {
     hasSecret: boolean;   // true if a secret is already stored — we never echo it back
     autoCreate: boolean;
   };
+  callbackUrl: string;
 }
 
-export function SsoSettings({ current }: Props) {
+export function SsoSettings({ current, callbackUrl }: Props) {
   const router = useRouter();
   const [enabled, setEnabled] = useState(current.enabled);
   const [providerUrl, setProviderUrl] = useState(current.providerUrl);
@@ -177,11 +178,7 @@ export function SsoSettings({ current }: Props) {
       {/* Redirect URI hint */}
       <div className="rounded-md bg-[#f0f7ff] border border-[#bfdbfe] px-4 py-3 text-xs text-[#1e40af] space-y-1">
         <p className="font-semibold">Register this Redirect URI with your identity provider:</p>
-        <p className="font-mono break-all">
-          {typeof window !== "undefined"
-            ? `${window.location.origin}/api/auth/sso/callback`
-            : "<your-app-url>/api/auth/sso/callback"}
-        </p>
+        <p className="font-mono break-all">{callbackUrl}</p>
         <p className="text-[#334155] mt-1">
           In your provider&rsquo;s app registration, set the redirect/callback URL to the value above.
           Enable &ldquo;Authorization Code&rdquo; flow with PKCE.

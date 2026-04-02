@@ -8,6 +8,10 @@ services:
       - NODE_ENV=production
       - JWT_SECRET=${JWT_SECRET}
       - DATABASE_URL=./data/assessments.db
+      # Set this to the public-facing URL of your deployment — no trailing slash.
+      # Used for SSO redirect URIs and shareable customer assessment links.
+      # Example: BASE_URL=https://assessments.yourcompany.com
+      - BASE_URL=${BASE_URL}
     volumes:
       - ./data:/app/data    # SQLite file persisted here
     restart: unless-stopped

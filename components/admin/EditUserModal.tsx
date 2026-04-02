@@ -9,6 +9,7 @@ interface UserRow {
   displayName: string;
   role: string;
   isActive: number | null;
+  ssoProvider: string | null;
 }
 
 interface Props {
@@ -53,7 +54,8 @@ export function EditUserModal({ user, currentUserId, onClose }: Props) {
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     const updates: Record<string, unknown> = { displayName, role };
-    if (newPassword) updates.password = newPassword;
+    // Never send a password field for SSO accounts
+    if (newPassword && !user.ssoProvider) updates.password = newPassword;
     const ok = await patch(updates);
     if (ok) {
       router.refresh();
@@ -94,12 +96,23 @@ export function EditUserModal({ user, currentUserId, onClose }: Props) {
             </select>
           </div>
 
-          <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-[#334155]">
-              New Password <span className="text-[#94a3b8] font-normal">(leave blank to keep current)</span>
-            </label>
-            <input className={inputCls} type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="min. 8 characters" />
-          </div>
+          {user.ssoProvider ? (
+            <div className="rounded-md bg-purple-50 border border-purple-200 px-4 py-3 text-xs text-purple-800 space-y-1">
+              <p className="font-semibold">SSO account — no local password</p>
+              <p>
+                This user authenticates exclusively via SSO. Password change and reset are not
+                available. To revoke access, deactivate the account or remove the user from your
+                identity provider.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              <label className="block text-sm font-medium text-[#334155]">
+                New Password <span className="text-[#94a3b8] font-normal">(leave blank to keep current)</span>
+              </label>
+              <input className={inputCls} type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="min. 8 characters" />
+            </div>
+          )}
 
           {error && (
             <p className="text-sm text-[#ef4444] bg-red-50 border border-red-200 rounded px-3 py-2">{error}</p>

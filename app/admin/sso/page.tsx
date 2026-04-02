@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { settings } from "@/lib/db/schema";
 import { SsoSettings } from "@/components/admin/SsoSettings";
+import { getBaseUrl } from "@/lib/config";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +28,7 @@ export default async function AdminSsoPage() {
       </div>
 
       <div className="rounded-lg border border-neutral-200 bg-white p-6 shadow-sm">
-        <SsoSettings current={current} />
+        <SsoSettings current={current} callbackUrl={`${getBaseUrl()}/api/auth/sso/callback`} />
       </div>
 
       <div className="rounded-lg border border-neutral-200 bg-white p-6 shadow-sm space-y-3">
