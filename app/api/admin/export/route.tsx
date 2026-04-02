@@ -119,7 +119,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         }) as React.ReactElement<DocumentProps>
       );
 
-      const filename = `assessment-${safeFilename(customerName)}-${isoDate(assessment.completedAt)}.pdf`;
+      const filename = `${safeFilename(customerName)}-${isoDate(assessment.completedAt)}-id${assessment.id}.pdf`;
       zip.file(filename, buffer);
     }
 

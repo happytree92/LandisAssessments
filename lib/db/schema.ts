@@ -13,6 +13,10 @@ export const users = sqliteTable("users", {
   mfaSecret: text("mfa_secret"),                   // base32-encoded TOTP secret, null if MFA not set up
   mfaEnabled: integer("mfa_enabled").default(0),   // 1 = user has completed TOTP setup
   mfaEnforced: integer("mfa_enforced").default(0), // 1 = admin requires MFA for this account
+  // SSO / OIDC identity
+  email: text("email"),                            // from OIDC claims; used for SSO user matching
+  ssoProvider: text("sso_provider"),               // "oidc" | null — null means local-only account
+  externalId: text("external_id"),                 // OIDC sub claim — stable identifier from provider
 });
 
 // MSP clients

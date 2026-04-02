@@ -9,10 +9,54 @@ import { verifyToken } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { CustomerList } from "@/components/dashboard/CustomerList";
+import { ScoreTrendline } from "@/components/dashboard/ScoreTrendline";
 
 function startOfMonthUnix(): number {
   const now = new Date();
   return Math.floor(new Date(now.getFullYear(), now.getMonth(), 1).getTime() / 1000);
+}
+
+/** Build monthly average score data for the last 6 months.
+ *  For each month: find the most recent assessment per customer that falls
+ *  within that month, then average across all customers that had one. */
+function buildMonthlyTrend(
+  completedAssessments: { customerId: number; overallScore: number; completedAt: number | null }[]
+): { label: string; score: number | null }[] {
+  const now = new Date();
+  const months: { label: string; score: number | null }[] = [];
+
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const monthStart = Math.floor(d.getTime() / 1000);
+    const monthEnd = Math.floor(new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59).getTime() / 1000);
+    const label = d.toLocaleDateString("en-US", { month: "short" });
+
+    // All assessments completed in this month
+    const inMonth = completedAssessments.filter(
+      (a) => a.completedAt !== null && a.completedAt >= monthStart && a.completedAt <= monthEnd
+    );
+
+    if (inMonth.length === 0) {
+      months.push({ label, score: null });
+      continue;
+    }
+
+    // For each customer, keep only their most recent assessment within the month
+    const latestPerCustomer = new Map<number, { score: number; completedAt: number }>();
+    for (const a of inMonth) {
+      if (a.completedAt === null) continue;
+      const existing = latestPerCustomer.get(a.customerId);
+      if (!existing || a.completedAt > existing.completedAt) {
+        latestPerCustomer.set(a.customerId, { score: a.overallScore, completedAt: a.completedAt });
+      }
+    }
+
+    const scores = Array.from(latestPerCustomer.values()).map((v) => v.score);
+    const avg = Math.round(scores.reduce((s, v) => s + v, 0) / scores.length);
+    months.push({ label, score: avg });
+  }
+
+  return months;
 }
 
 export default async function DashboardPage() {
@@ -41,13 +85,7 @@ export default async function DashboardPage() {
     (a) => a.completedAt !== null && a.completedAt >= thisMonthStart
   ).length;
 
-  const avgScore =
-    completedAssessments.length === 0
-      ? null
-      : Math.round(
-          completedAssessments.reduce((sum, a) => sum + a.overallScore, 0) /
-            completedAssessments.length
-        );
+  const monthlyTrend = buildMonthlyTrend(completedAssessments);
 
   // All customers with their latest assessment
   const allCustomers = db.select().from(customers).all();
@@ -77,7 +115,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         <Card className="border border-neutral-200 shadow-sm rounded-lg">
           <CardContent className="py-6">
             <p className="text-3xl font-bold text-[#1e40af]">{customerCount}</p>
@@ -90,32 +128,32 @@ export default async function DashboardPage() {
             <p className="text-sm text-[#94a3b8] mt-1">Assessments This Month</p>
           </CardContent>
         </Card>
-        <Card className="border border-neutral-200 shadow-sm rounded-lg">
-          <CardContent className="py-6">
-            {avgScore !== null ? (
-              <>
-                <p
-                  className={`text-3xl font-bold ${
-                    avgScore >= 75
-                      ? "text-[#10b981]"
-                      : avgScore >= 50
-                      ? "text-[#f59e0b]"
-                      : "text-[#ef4444]"
-                  }`}
-                >
-                  {avgScore}
-                </p>
-                <p className="text-sm text-[#94a3b8] mt-1">Avg Score (All Time)</p>
-              </>
-            ) : (
-              <>
-                <p className="text-3xl font-bold text-[#94a3b8]">—</p>
-                <p className="text-sm text-[#94a3b8] mt-1">Avg Score (All Time)</p>
-              </>
-            )}
-          </CardContent>
-        </Card>
       </div>
+
+      {/* Score trend */}
+      <Card className="border border-neutral-200 shadow-sm rounded-lg mb-10">
+        <CardContent className="pt-5 pb-4">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="text-sm font-semibold text-[#334155]">Average Score Trend</p>
+              <p className="text-xs text-[#94a3b8] mt-0.5">
+                Most recent assessment per customer, averaged monthly
+              </p>
+            </div>
+          </div>
+          <ScoreTrendline data={monthlyTrend} />
+          <div className="flex items-center gap-4 mt-3 text-xs text-[#94a3b8]">
+            <span className="flex items-center gap-1">
+              <span className="inline-block w-6 border-t-2 border-dashed border-[#10b981] opacity-60" />
+              Excellent (75+)
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="inline-block w-6 border-t-2 border-dashed border-[#f59e0b] opacity-60" />
+              Needs Attention (50+)
+            </span>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Customers with search + sort */}
       <div className="mb-8">

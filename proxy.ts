@@ -10,6 +10,7 @@ const PUBLIC_PREFIXES = [
   "/api/auth/login",
   "/api/auth/logout",
   "/api/auth/mfa/challenge", // second-factor during login (uses pre-auth cookie, not session)
+  "/api/auth/sso",           // SSO start + callback — must be public for the OIDC redirect loop
   "/api/assess",             // public customer self-assessment API
   "/assess",                 // public customer self-assessment UI
 ];
