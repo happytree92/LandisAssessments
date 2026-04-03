@@ -52,6 +52,7 @@ export function QuestionsTable({ initialTemplates, initialQuestions }: Props) {
   const [, startTransition] = useTransition();
   const [actionLoading, setActionLoading] = useState<number | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<TemplateRow | null>(null);
+  const [confirmHardDelete, setConfirmHardDelete] = useState<TemplateRow | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // ── Question-level toggle ──────────────────────────────────────────
@@ -116,6 +117,28 @@ export function QuestionsTable({ initialTemplates, initialQuestions }: Props) {
 
   async function recoverTemplate(template: TemplateRow) {
     await patchTemplate(template, { recover: true }, { deletedAt: null });
+  }
+
+  async function permanentlyDeleteTemplate() {
+    if (!confirmHardDelete) return;
+    const target = confirmHardDelete;
+    setConfirmHardDelete(null);
+    setError(null);
+    setActionLoading(target.id);
+    try {
+      const res = await fetch(`/api/admin/templates/${target.id}`, { method: "DELETE" });
+      if (res.ok) {
+        setTemplates((prev) => prev.filter((t) => t.id !== target.id));
+        setQuestions((prev) => prev.filter((q) => q.templateSlug !== target.slug));
+      } else {
+        const d = await res.json();
+        setError(d.error ?? "Failed to permanently delete template");
+      }
+    } catch {
+      setError("Network error — please try again.");
+    } finally {
+      setActionLoading(null);
+    }
   }
 
   // ── Grouping ───────────────────────────────────────────────────────
@@ -188,13 +211,22 @@ export function QuestionsTable({ initialTemplates, initialQuestions }: Props) {
 
           <div className="flex items-center gap-3 shrink-0">
             {isDeleted ? (
-              <button
-                onClick={() => recoverTemplate(template)}
-                disabled={isLoading}
-                className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium text-[#334155] hover:bg-neutral-50 disabled:opacity-50 transition-colors"
-              >
-                {isLoading ? "…" : "Recover"}
-              </button>
+              <>
+                <button
+                  onClick={() => recoverTemplate(template)}
+                  disabled={isLoading}
+                  className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium text-[#334155] hover:bg-neutral-50 disabled:opacity-50 transition-colors"
+                >
+                  {isLoading ? "…" : "Recover"}
+                </button>
+                <button
+                  onClick={() => setConfirmHardDelete(template)}
+                  disabled={isLoading}
+                  className="rounded-md border border-red-300 bg-white px-3 py-1.5 text-sm font-medium text-[#ef4444] hover:bg-red-50 disabled:opacity-50 transition-colors"
+                >
+                  Permanently Delete
+                </button>
+              </>
             ) : (
               <>
                 {/* Visibility toggle */}
@@ -327,7 +359,48 @@ export function QuestionsTable({ initialTemplates, initialQuestions }: Props) {
         </div>
       )}
 
-      {/* Delete confirmation modal */}
+      {/* Permanent delete confirmation modal */}
+      {confirmHardDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setConfirmHardDelete(null)}
+          />
+          <div className="relative z-10 w-full max-w-md rounded-lg border border-neutral-200 bg-white p-6 shadow-xl">
+            <h2 className="text-base font-semibold text-[#0f172a] mb-2">Permanently Delete Template</h2>
+            <p className="text-sm text-[#334155] mb-4">
+              Permanently delete{" "}
+              <span className="font-semibold">{confirmHardDelete.name}</span>{" "}
+              and all its questions?
+            </p>
+            <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3 mb-5 text-sm text-red-800">
+              <p className="font-semibold mb-1">This cannot be undone</p>
+              <p>
+                The template slug <code className="font-mono bg-red-100 px-1 rounded">{confirmHardDelete.slug}</code> will
+                be freed up immediately so you can recreate it via CSV import.
+              </p>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                type="button"
+                onClick={() => setConfirmHardDelete(null)}
+                className="rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-[#334155] hover:bg-neutral-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={permanentlyDeleteTemplate}
+                className="rounded-md bg-[#ef4444] hover:bg-red-600 text-white px-4 py-2 text-sm font-medium transition-colors"
+              >
+                Yes, Permanently Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Soft-delete confirmation modal */}
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div

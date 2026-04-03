@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { templates } from "@/lib/db/schema";
+import { templates, questions } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { requireAdmin, isAuthError } from "@/lib/api-auth";
 import { log } from "@/lib/logger";
@@ -107,5 +107,53 @@ export async function PATCH(
   } catch (err) {
     console.error("[admin/templates/[id] PATCH]", err);
     return NextResponse.json({ error: "Failed to update template" }, { status: 500 });
+  }
+}
+
+// DELETE /api/admin/templates/[id] — permanently delete template + all its questions
+export async function DELETE(
+  req: NextRequest,
+  { params }: RouteContext
+): Promise<NextResponse> {
+  const session = await requireAdmin(req);
+  if (isAuthError(session)) return session;
+
+  try {
+    const { id } = await params;
+    const templateId = parseInt(id, 10);
+    if (isNaN(templateId)) {
+      return NextResponse.json({ error: "Invalid id" }, { status: 400 });
+    }
+
+    const existing = db.select().from(templates).where(eq(templates.id, templateId)).get();
+    if (!existing) {
+      return NextResponse.json({ error: "Template not found" }, { status: 404 });
+    }
+
+    // Hard delete all questions belonging to this template first
+    const deletedQuestions = db.delete(questions).where(eq(questions.templateId, templateId)).run();
+
+    // Hard delete the template
+    db.delete(templates).where(eq(templates.id, templateId)).run();
+
+    log({
+      level: "warn",
+      category: "system",
+      action: "template.permanently_deleted",
+      userId: session.userId,
+      username: session.username,
+      resourceType: "template",
+      resourceId: templateId,
+      metadata: {
+        templateName: existing.name,
+        slug: existing.slug,
+        questionsDeleted: deletedQuestions.changes,
+      },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error("[admin/templates/[id] DELETE]", err);
+    return NextResponse.json({ error: "Failed to permanently delete template" }, { status: 500 });
   }
 }
