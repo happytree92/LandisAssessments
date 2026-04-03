@@ -11,6 +11,7 @@ import {
   getSsoCallbackUrl,
   type SsoStatePayload,
 } from "@/lib/sso";
+import { getBaseUrl } from "@/lib/config";
 
 // GET /api/auth/sso/callback?code=...&state=...
 // Handles the OIDC provider redirect. Verifies state, exchanges code for tokens,
@@ -21,30 +22,32 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const returnedState = searchParams.get("state");
   const providerError = searchParams.get("error");
 
+  const base = getBaseUrl();
+
   // Provider returned an error (e.g. user cancelled)
   if (providerError) {
-    return NextResponse.redirect(new URL("/login?error=sso_cancelled", req.url));
+    return NextResponse.redirect(new URL("/login?error=sso_cancelled", base));
   }
 
   if (!code || !returnedState) {
-    return NextResponse.redirect(new URL("/login?error=sso_failed", req.url));
+    return NextResponse.redirect(new URL("/login?error=sso_failed", base));
   }
 
   // ── Verify state cookie ────────────────────────────────────────────────────
   const rawState = req.cookies.get("sso_state")?.value;
   if (!rawState) {
-    return NextResponse.redirect(new URL("/login?error=sso_state_expired", req.url));
+    return NextResponse.redirect(new URL("/login?error=sso_state_expired", base));
   }
 
   let statePayload: SsoStatePayload;
   try {
     statePayload = JSON.parse(rawState) as SsoStatePayload;
   } catch {
-    return NextResponse.redirect(new URL("/login?error=sso_failed", req.url));
+    return NextResponse.redirect(new URL("/login?error=sso_failed", base));
   }
 
   if (statePayload.state !== returnedState) {
-    return NextResponse.redirect(new URL("/login?error=sso_state_mismatch", req.url));
+    return NextResponse.redirect(new URL("/login?error=sso_state_mismatch", base));
   }
 
   try {
@@ -58,7 +61,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const autoCreate = cfg["sso_auto_create_users"] !== "false"; // default true
 
     if (!providerUrl || !clientId || !clientSecret) {
-      return NextResponse.redirect(new URL("/login?error=sso_misconfigured", req.url));
+      return NextResponse.redirect(new URL("/login?error=sso_misconfigured", base));
     }
 
     // ── Exchange code for tokens ─────────────────────────────────────────────
@@ -78,12 +81,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
     const { sub, email, name, preferred_username, given_name, family_name } = claims;
     if (!sub) {
-      return NextResponse.redirect(new URL("/login?error=sso_no_sub", req.url));
+      return NextResponse.redirect(new URL("/login?error=sso_no_sub", base));
     }
 
     // Require email — used for display and as fallback matching key
     if (!email) {
-      return NextResponse.redirect(new URL("/login?error=sso_no_email", req.url));
+      return NextResponse.redirect(new URL("/login?error=sso_no_email", base));
     }
 
     // ── Find or create user ──────────────────────────────────────────────────
@@ -102,7 +105,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
     if (!user) {
       if (!autoCreate) {
-        return NextResponse.redirect(new URL("/login?error=sso_no_account", req.url));
+        return NextResponse.redirect(new URL("/login?error=sso_no_account", base));
       }
 
       // Derive a username from the email prefix; ensure uniqueness
@@ -147,12 +150,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     }
 
     if (!user) {
-      return NextResponse.redirect(new URL("/login?error=sso_failed", req.url));
+      return NextResponse.redirect(new URL("/login?error=sso_failed", base));
     }
 
     // ── Check account is active ──────────────────────────────────────────────
     if (user.isActive === 0) {
-      return NextResponse.redirect(new URL("/login?error=account_inactive", req.url));
+      return NextResponse.redirect(new URL("/login?error=account_inactive", base));
     }
 
     // ── MFA check (same logic as local login) ────────────────────────────────
@@ -168,7 +171,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         username: user.username,
         metadata: { email },
       });
-      return NextResponse.redirect(new URL("/login?error=mfa_required", req.url));
+      return NextResponse.redirect(new URL("/login?error=mfa_required", base));
     }
 
     // Clear the state cookie before issuing the session
@@ -187,7 +190,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         mfaPending: true,
       });
 
-      const response = NextResponse.redirect(new URL("/login?step=mfa", req.url));
+      const response = NextResponse.redirect(new URL("/login?step=mfa", base));
       response.cookies.set("preauth", preAuthToken, {
         httpOnly: true,
         sameSite: "lax",
@@ -216,7 +219,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       metadata: { email, provider: "oidc", tokenFingerprint: tokenFingerprint(token) },
     });
 
-    const response = NextResponse.redirect(new URL("/dashboard", req.url));
+    const response = NextResponse.redirect(new URL("/dashboard", base));
     response.cookies.set("session", token, {
       httpOnly: true,
       sameSite: "lax",
@@ -227,6 +230,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return clearState(response);
   } catch (err) {
     console.error("[sso/callback]", err);
-    return NextResponse.redirect(new URL("/login?error=sso_failed", req.url));
+    return NextResponse.redirect(new URL("/login?error=sso_failed", base));
   }
 }

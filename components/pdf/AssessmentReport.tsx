@@ -230,7 +230,6 @@ export function AssessmentReport({
             )}
             <View>
               <Text style={s.wordmark}>{orgName.toUpperCase()}</Text>
-              <Text style={s.wordmarkSub}>Prepared by {orgName}</Text>
             </View>
           </View>
           <View style={s.headerRight}>

@@ -9,6 +9,7 @@ import {
   getSsoCallbackUrl,
   type SsoStatePayload,
 } from "@/lib/sso";
+import { getBaseUrl } from "@/lib/config";
 
 // GET /api/auth/sso/start
 // Initiates the OIDC authorization code flow with PKCE.
@@ -19,8 +20,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const rows = db.select().from(settings).all();
     const cfg = Object.fromEntries(rows.map((r) => [r.key, r.value]));
 
+    const base = getBaseUrl();
+
     if (cfg["sso_enabled"] !== "true") {
-      return NextResponse.redirect(new URL("/login?error=sso_disabled", req.url));
+      return NextResponse.redirect(new URL("/login?error=sso_disabled", base));
     }
 
     const providerUrl = cfg["sso_provider_url"]?.trim();
@@ -28,7 +31,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const clientSecret = cfg["sso_client_secret"]?.trim();
 
     if (!providerUrl || !clientId || !clientSecret) {
-      return NextResponse.redirect(new URL("/login?error=sso_misconfigured", req.url));
+      return NextResponse.redirect(new URL("/login?error=sso_misconfigured", base));
     }
 
     const discovery = await discoverOidc(providerUrl);
@@ -51,6 +54,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return response;
   } catch (err) {
     console.error("[sso/start]", err);
-    return NextResponse.redirect(new URL("/login?error=sso_failed", req.url));
+    return NextResponse.redirect(new URL("/login?error=sso_failed", getBaseUrl()));
   }
 }
