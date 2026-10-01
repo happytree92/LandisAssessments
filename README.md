@@ -119,6 +119,15 @@ That's it. You're connected.
 
 ---
 
+## Running Checks
+
+Run these before pushing. CI runs the same two commands on every pull request, and the Docker image is only published when both pass.
+
+    npm test            # unit tests (Vitest)
+    npm run typecheck   # TypeScript, including generated route types
+
+---
+
 ## Pushing Changes to GitHub
 
 After making any changes, push them with one command:

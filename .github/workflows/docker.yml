@@ -5,7 +5,11 @@ on:
     branches: [main]
 
 jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+
   build:
+    needs: checks           # never publish :latest from a commit that fails typecheck or tests
     runs-on: ubuntu-latest  # real x86_64 hardware — no emulation, no QEMU
 
     permissions:

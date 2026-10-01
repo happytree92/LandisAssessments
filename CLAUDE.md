@@ -26,6 +26,7 @@
 ## Repo & Deployment
 
 - **GitHub:** https://github.com/happytree92/LandisAssessments.git
+- **Checks:** `npm test` (Vitest, `*.test.ts` next to the code) and `npm run typecheck`; CI runs both on PRs and before every image publish
 - **Deploy push:** `./push.sh "what you changed"` — commits, pushes; GitHub Actions builds Docker image
 - **On server:** Pull new image and redeploy in Portainer
 - **Default login:** admin / changeme123
