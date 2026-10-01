@@ -1,3 +1,4 @@
+import { SignJWT } from "jose";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   signPreAuthToken,
@@ -10,6 +11,9 @@ import {
 } from "./auth";
 
 const SECRET = "test-secret-that-is-at-least-32-characters";
+
+// What jose throws when a token's `aud` claim is missing or is for another use
+const WRONG_AUDIENCE = { code: "ERR_JWT_CLAIM_VALIDATION_FAILED", claim: "aud" };
 
 const session: SessionPayload = {
   userId: 7,
@@ -73,6 +77,24 @@ describe("session tokens", () => {
     await expect(verifyToken(token)).rejects.toThrow();
   });
 
+  it("reject a pre-auth token, so a password alone can't skip MFA", async () => {
+    const token = await signPreAuthToken(preAuth);
+
+    await expect(verifyToken(token)).rejects.toMatchObject(WRONG_AUDIENCE);
+  });
+
+  it("reject tokens signed before they carried a session audience", async () => {
+    // Sessions and pre-auth tokens from before this check have no `aud` claim,
+    // so neither can be told apart. Holders of an old session sign in again.
+    const unscoped = await new SignJWT({ ...session })
+      .setProtectedHeader({ alg: "HS256" })
+      .setIssuedAt()
+      .setExpirationTime("8h")
+      .sign(new TextEncoder().encode(SECRET));
+
+    await expect(verifyToken(unscoped)).rejects.toMatchObject(WRONG_AUDIENCE);
+  });
+
   it("default to the staff role when issued before roles existed", async () => {
     const legacy = { userId: 7, username: "alice", displayName: "Alice" } as SessionPayload;
 
@@ -100,7 +122,7 @@ describe("pre-auth tokens", () => {
   it("reject a full session token", async () => {
     const token = await signToken(session);
 
-    await expect(verifyPreAuthToken(token)).rejects.toThrow("Not a pre-auth token");
+    await expect(verifyPreAuthToken(token)).rejects.toMatchObject(WRONG_AUDIENCE);
   });
 
   it("expire after 5 minutes", async () => {

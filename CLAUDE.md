@@ -268,6 +268,7 @@ Key/value store for org configuration.
 2. JWT stored in httpOnly, sameSite=lax, secure cookie named `session`
 3. `requireSession(req)` helper validates cookie + checks `password_changed_at` against DB (invalidates old sessions on password change)
 4. `requireAdmin(req)` additionally checks `role === "admin"`
+5. Session and pre-auth JWTs share `JWT_SECRET`, so each has its own `aud` claim (`session` / `mfa-preauth`), and `verifyToken` / `verifyPreAuthToken` only accept their own. Any new JWT signed with this secret needs its own audience too, or it can be replayed as a session
 
 **Rate limiting:** 5 failed attempts per IP → 15-min lockout (in-memory)
 
