@@ -155,6 +155,32 @@ Your database (SQLite) is stored in the `./data/` volume and is NOT affected by 
 
 ---
 
+## Running on ARM (Orange Pi 5, Raspberry Pi)
+
+Every merge to `main` publishes `ghcr.io/happytree92/landisassessments:latest` for both `linux/amd64` and `linux/arm64`, so the same tag works on the Synology and on 64-bit ARM boards. `docker pull` picks the right one automatically. The board needs a 64-bit OS: `uname -m` should print `aarch64`.
+
+On the board, put this in a `docker-compose.yml` next to a `.env` that sets `JWT_SECRET` and `BASE_URL` (see Quick Start):
+
+```yaml
+services:
+  app:
+    image: ghcr.io/happytree92/landisassessments:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - JWT_SECRET=${JWT_SECRET}
+      - DATABASE_URL=./data/assessments.db
+      - BASE_URL=${BASE_URL}
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+```
+
+Then run `docker compose pull && docker compose up -d`. If the pull says `unauthorized`, the package is private: run `docker login ghcr.io -u happytree92` with a GitHub token that has `read:packages`, or make the package public in its GitHub settings.
+
+---
+
 ## Returning to This Project
 
 ### On your Mac (to make changes):

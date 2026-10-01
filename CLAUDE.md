@@ -19,7 +19,7 @@
 | Auth | JWT (jose) + httpOnly cookies + Argon2id + TOTP MFA + OIDC SSO |
 | PDF | @react-pdf/renderer |
 | Deployment | Docker + Docker Compose |
-| Registry | ghcr.io/happytree92/landisassessments:latest |
+| Registry | ghcr.io/happytree92/landisassessments:latest (linux/amd64 + linux/arm64) |
 
 ---
 
@@ -29,6 +29,7 @@
 - **Checks:** `npm test` (Vitest, `*.test.ts` next to the code) and `npm run typecheck`; CI runs both on PRs and before every image publish
 - **`vite` is pinned to `^7` on purpose:** nothing imports it, but with vite 8 in the tree npm 10 (bundled with Node 20 and 22; used by CI and the Docker build) crashes resolving vitest's peers (`reading 'edgesOut'`). Don't remove it or bump it to `^8` while CI and the image use npm 10. vitest stays on 4 because vitest 5 needs Node 22.
 - **Deploy push:** `./push.sh "what you changed"` — commits, pushes; GitHub Actions builds Docker image
+- **Multi-arch image:** `docker.yml` builds amd64 (Synology) and arm64 (Orange Pi 5) natively on separate GitHub runners (`ubuntu-latest` / `ubuntu-24.04-arm`; free because the repo is public), then points `:latest` at both. PRs build both without pushing. A new native dependency must ship a `linux-arm64-musl` binary or compile from source in the Dockerfile
 - **On server:** Pull new image and redeploy in Portainer
 - **Default login:** admin / changeme123
 - **SQLite location (server):** `/volume2/docker/landisapp/data/assessments.db`
