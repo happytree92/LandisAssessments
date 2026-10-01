@@ -43,16 +43,23 @@ function getSecret(): Uint8Array {
   return new TextEncoder().encode(secret);
 }
 
+// Both token types are signed with the same secret, so each carries its own
+// audience and is only accepted where that audience is expected. Without this,
+// the pre-auth token (password checked, TOTP still pending) works as a session.
+const SESSION_AUDIENCE = "session";
+const PREAUTH_AUDIENCE = "mfa-preauth";
+
 export async function signToken(payload: SessionPayload): Promise<string> {
   return new SignJWT({ ...payload })
     .setProtectedHeader({ alg: "HS256" })
+    .setAudience(SESSION_AUDIENCE)
     .setIssuedAt()
     .setExpirationTime("8h")
     .sign(getSecret());
 }
 
 export async function verifyToken(token: string): Promise<SessionPayload> {
-  const { payload } = await jwtVerify(token, getSecret());
+  const { payload } = await jwtVerify(token, getSecret(), { audience: SESSION_AUDIENCE });
   const p = payload as unknown as SessionPayload;
   // Tokens issued before role was added — treat as staff
   if (!p.role) p.role = "staff";
@@ -63,6 +70,7 @@ export async function verifyToken(token: string): Promise<SessionPayload> {
 export async function signPreAuthToken(payload: PreAuthPayload): Promise<string> {
   return new SignJWT({ ...payload })
     .setProtectedHeader({ alg: "HS256" })
+    .setAudience(PREAUTH_AUDIENCE)
     .setIssuedAt()
     .setExpirationTime("5m")
     .sign(getSecret());
@@ -70,7 +78,7 @@ export async function signPreAuthToken(payload: PreAuthPayload): Promise<string>
 
 /** Verify a pre-auth token. Throws if invalid, expired, or not a pre-auth token. */
 export async function verifyPreAuthToken(token: string): Promise<PreAuthPayload> {
-  const { payload } = await jwtVerify(token, getSecret());
+  const { payload } = await jwtVerify(token, getSecret(), { audience: PREAUTH_AUDIENCE });
   const p = payload as unknown as PreAuthPayload;
   if (!p.mfaPending) throw new Error("Not a pre-auth token");
   return p;

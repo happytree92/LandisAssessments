@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { jwtVerify } from "jose";
+import { verifyToken } from "@/lib/auth";
 
 /**
  * Paths that require no authentication.
@@ -38,11 +38,10 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    const secret = process.env.JWT_SECRET ?? "";
-    const { payload } = await jwtVerify(token, new TextEncoder().encode(secret));
+    // verifyToken only accepts session tokens, never the MFA pre-auth token
+    const { role } = await verifyToken(token);
 
     // Admin pages/routes require role = "admin"
-    const role = (payload as { role?: string }).role ?? "staff";
     if (
       (pathname.startsWith("/admin") || pathname.startsWith("/api/admin")) &&
       role !== "admin"
