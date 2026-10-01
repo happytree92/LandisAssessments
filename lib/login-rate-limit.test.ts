@@ -40,13 +40,27 @@ describe("login rate limit", () => {
     expect(checkLoginRateLimit(ip, "alice")).toEqual({ allowed: false, retryAfter: 900 });
   });
 
-  it("lifts the lockout once 15 minutes have passed", () => {
+  it("counts the lockout down and lifts it at exactly 15 minutes", () => {
     const ip = freshIp();
     fail(ip, "alice", 5);
 
-    advance(15 * MINUTE + 1000);
+    // 1.4 s left rounds up, so a client told to wait is never early
+    advance(15 * MINUTE - 1400);
+    expect(checkLoginRateLimit(ip, "alice")).toEqual({ allowed: false, retryAfter: 2 });
 
+    advance(1400);
     expect(checkLoginRateLimit(ip, "alice")).toEqual({ allowed: true });
+  });
+
+  it("treats exactly 15 minutes as still inside the window", () => {
+    const ip = freshIp();
+    fail(ip, "alice", 4);
+
+    advance(15 * MINUTE);
+    expect(checkLoginRateLimit(ip, "alice")).toEqual({ allowed: true });
+    fail(ip, "alice", 1);
+
+    expect(checkLoginRateLimit(ip, "alice")).toMatchObject({ allowed: false });
   });
 
   it("only counts failures inside the 15-minute window", () => {

@@ -27,6 +27,7 @@
 
 - **GitHub:** https://github.com/happytree92/LandisAssessments.git
 - **Checks:** `npm test` (Vitest, `*.test.ts` next to the code) and `npm run typecheck`; CI runs both on PRs and before every image publish
+- **`vite` is pinned to `^7` on purpose:** nothing imports it, but with vite 8 in the tree npm 10 (bundled with Node 20 and 22; used by CI and the Docker build) crashes resolving vitest's peers (`reading 'edgesOut'`). Don't remove it or bump it to `^8` while CI and the image use npm 10. vitest stays on 4 because vitest 5 needs Node 22.
 - **Deploy push:** `./push.sh "what you changed"` — commits, pushes; GitHub Actions builds Docker image
 - **On server:** Pull new image and redeploy in Portainer
 - **Default login:** admin / changeme123
