@@ -119,6 +119,17 @@ That's it. You're connected.
 
 ---
 
+## Running Checks
+
+Run these before pushing. CI runs the same two commands on every pull request, and the Docker image is only published when both pass.
+
+    npm test            # unit tests (Vitest)
+    npm run typecheck   # TypeScript, including generated route types
+
+`vite` is pinned to `^7` in `package.json` on purpose. With vite 8, npm 10 crashes during install, so don't remove it or bump it to `^8` while CI and the Docker build use npm 10 (bundled with Node 20 and 22).
+
+---
+
 ## Pushing Changes to GitHub
 
 After making any changes, push them with one command:

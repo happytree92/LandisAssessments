@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  pull_request:
+  workflow_call: # docker.yml runs these checks before publishing an image
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Typecheck and test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20 # same major as the node:20-alpine Docker image
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
