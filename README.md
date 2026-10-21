@@ -157,7 +157,7 @@ Your database (SQLite) is stored in the `./data/` volume and is NOT affected by 
 
 ## Running on ARM (Orange Pi 5, Raspberry Pi)
 
-Every merge to `main` publishes `ghcr.io/happytree92/landisassessments:latest` for both `linux/amd64` and `linux/arm64`, so the same tag works on the Synology and on 64-bit ARM boards. `docker pull` picks the right one automatically. The board needs a 64-bit OS: `uname -m` should print `aarch64`.
+Every push to `main` (a merged PR or `./push.sh`) publishes `ghcr.io/happytree92/landisassessments:latest` for both `linux/amd64` and `linux/arm64`, so the same tag works on the Synology and on 64-bit ARM boards. `docker pull` picks the right one automatically. The board needs a 64-bit OS: `uname -m` should print `aarch64`.
 
 On the board, put this in a `docker-compose.yml` next to a `.env` that sets `JWT_SECRET` and `BASE_URL` (see Quick Start):
 

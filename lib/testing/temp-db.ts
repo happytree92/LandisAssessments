@@ -55,6 +55,11 @@ export function updateUser(id: number, fields: Partial<User>): void {
   db.update(users).set(fields).where(eq(users.id, id)).run();
 }
 
+/** Makes every admin (the seeded default one included) staff, for tests that count admins. */
+export function demoteAllAdmins(): void {
+  db.update(users).set({ role: "staff" }).where(eq(users.role, "admin")).run();
+}
+
 export function getUser(id: number): User | undefined {
   return db.select().from(users).where(eq(users.id, id)).get();
 }

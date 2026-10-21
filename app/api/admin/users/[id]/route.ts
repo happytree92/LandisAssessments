@@ -117,16 +117,36 @@ export async function PATCH(
       );
     }
 
+    // 0 or 1 only: login and getSession treat anything but 0 as active, while the
+    // last-admin guard below counts is_active = 1, so other values would split them
+    if (body.isActive !== undefined && body.isActive !== 0 && body.isActive !== 1) {
+      return NextResponse.json({ error: "isActive must be 0 or 1" }, { status: 400 });
+    }
+
     // Prevent an admin from deactivating their own account
-    if (typeof body.isActive === "number" && body.isActive === 0 && session.userId === userId) {
+    if (body.isActive === 0 && session.userId === userId) {
       return NextResponse.json(
         { error: "You cannot deactivate your own account" },
         { status: 403 }
       );
     }
 
+    // Validate and hash a new password before the last-admin guard (see below)
+    let newPasswordHash: string | undefined;
+    if (typeof body.password === "string" && body.password.length > 0) {
+      if (body.password.length < 8) {
+        return NextResponse.json(
+          { error: "Password must be at least 8 characters" },
+          { status: 400 }
+        );
+      }
+      newPasswordHash = await hashPassword(body.password);
+    }
+
     // Never leave the app without an active admin (DELETE has the same guard).
     // Covers demoting yourself as well as demoting or deactivating someone else.
+    // Keep everything from this count to the UPDATE synchronous: an await in
+    // between would let two concurrent requests both pass the guard.
     const removesActiveAdmin =
       existing.role === "admin" &&
       existing.isActive !== 0 &&
@@ -153,17 +173,12 @@ export async function PATCH(
     if (body.role === "admin" || body.role === "staff") {
       updates.role = body.role;
     }
-    if (typeof body.isActive === "number") {
+    if (body.isActive !== undefined) {
       updates.isActive = body.isActive;
     }
-    if (typeof body.password === "string" && body.password.length >= 8) {
-      updates.passwordHash = await hashPassword(body.password);
+    if (newPasswordHash) {
+      updates.passwordHash = newPasswordHash;
       updates.passwordChangedAt = Math.floor(Date.now() / 1000);
-    } else if (typeof body.password === "string" && body.password.length > 0) {
-      return NextResponse.json(
-        { error: "Password must be at least 8 characters" },
-        { status: 400 }
-      );
     }
     if (typeof body.mfaEnforced === "number") {
       updates.mfaEnforced = body.mfaEnforced;
