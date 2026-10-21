@@ -267,9 +267,10 @@ Key/value store for org configuration.
 **Session flow:**
 1. POST `/api/auth/login` → validates creds → if MFA enabled, issues 5-min pre-auth JWT → client posts TOTP code to `/api/auth/mfa/challenge` → issues full 8-hour session JWT
 2. JWT stored in httpOnly, sameSite=lax, secure cookie named `session`
-3. `requireSession(req)` helper validates cookie + checks `password_changed_at` against DB (invalidates old sessions on password change)
-4. `requireAdmin(req)` additionally checks `role === "admin"`
-5. Session and pre-auth JWTs share `JWT_SECRET`, so each has its own `aud` claim (`session` / `mfa-preauth`), and `verifyToken` / `verifyPreAuthToken` only accept their own. Any new JWT signed with this secret needs its own audience too, or it can be replayed as a session
+3. `getSession(token)` (`lib/session.ts`) checks the token, then re-reads the user on every request. It rejects deleted or deactivated users and tokens issued before a password change, and takes role and name from the DB, so deactivation and demotion apply on the next request. `proxy.ts`, pages and route handlers all use it; never call `verifyToken` directly for an access decision
+4. `requireSession(req)` / `requireAdmin(req)` wrap `getSession` for API routes; `requireAdmin` also requires the DB role to be `"admin"`
+5. Session and pre-auth JWTs share `JWT_SECRET`, so each has its own `aud` claim (`session` / `mfa-preauth`), and `verifyToken` / `verifyPreAuthToken` only accept their own. Any new JWT signed with this secret needs a new, unique audience, and its verifier must pass `audience` to `jwtVerify`; a verifier without one accepts every token type
+6. The app always keeps at least one active admin: demoting, deactivating or deleting the last one returns 409
 
 **Rate limiting:** 5 failed attempts per IP → 15-min lockout (in-memory)
 
@@ -352,7 +353,7 @@ Key/value store for org configuration.
 | MFA | TOTP (otplib), optional per-user, enforceable by admin |
 | SSO | OIDC/OAuth2 (configurable) |
 | Rate limiting | 5 attempts/15-min lockout, in-memory per IP |
-| Session invalidation | Password change updates `password_changed_at`, old tokens rejected |
+| Session invalidation | Password change, deactivation and demotion take effect on the next request (`lib/session.ts` re-checks the DB) |
 | IP allowlist | Optional login restriction (settings table) |
 | CSP headers | `Content-Security-Policy` on all routes |
 | Security headers | `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` |
@@ -368,7 +369,8 @@ Key/value store for org configuration.
 |------|---------|
 | `lib/db/schema.ts` | Drizzle table definitions |
 | `lib/auth.ts` | JWT sign/verify helpers |
-| `lib/api-auth.ts` | `requireSession()`, `requireAdmin()` helpers |
+| `lib/session.ts` | `getSession()`: the DB-backed session check every access decision uses |
+| `lib/api-auth.ts` | `requireSession()`, `requireAdmin()` helpers for API routes |
 | `lib/scoring.ts` | Score calculation engine |
 | `lib/questions.ts` | Built-in question definitions |
 | `lib/password.ts` | Argon2id/bcrypt hash+verify |

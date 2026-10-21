@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
-import { verifyToken } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 import { MfaPanel } from "@/components/account/MfaPanel";
 import { ChangePasswordForm } from "@/components/account/ChangePasswordForm";
 
@@ -14,12 +14,8 @@ export default async function AccountSecurityPage() {
   const token = cookieStore.get("session")?.value;
   if (!token) redirect("/login");
 
-  let session;
-  try {
-    session = await verifyToken(token);
-  } catch {
-    redirect("/login");
-  }
+  const session = await getSession(token);
+  if (!session) redirect("/login");
 
   const user = db.select().from(users).where(eq(users.id, session.userId)).get();
   if (!user) redirect("/login");

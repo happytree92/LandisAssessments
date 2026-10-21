@@ -125,6 +125,26 @@ export async function PATCH(
       );
     }
 
+    // Never leave the app without an active admin (DELETE has the same guard).
+    // Covers demoting yourself as well as demoting or deactivating someone else.
+    const removesActiveAdmin =
+      existing.role === "admin" &&
+      existing.isActive !== 0 &&
+      (body.role === "staff" || body.isActive === 0);
+    if (removesActiveAdmin) {
+      const activeAdmins = db
+        .select({ count: sql<number>`count(*)` })
+        .from(users)
+        .where(and(eq(users.role, "admin"), eq(users.isActive, 1)))
+        .get()?.count ?? 0;
+      if (activeAdmins <= 1) {
+        return NextResponse.json(
+          { error: "This is the only active admin. Promote another user to admin first." },
+          { status: 409 }
+        );
+      }
+    }
+
     const updates: Partial<typeof existing> = {};
 
     if (typeof body.displayName === "string" && body.displayName.trim()) {

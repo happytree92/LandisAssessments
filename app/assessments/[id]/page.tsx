@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { assessments, customers, users, templates } from "@/lib/db/schema";
 import { getQuestionsForTemplate } from "@/lib/questions-db";
 import { buildSummary } from "@/lib/summary";
-import { verifyToken } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 import { ScoreCard } from "@/components/assessments/ScoreCard";
 import { CategoryBreakdown } from "@/components/assessments/CategoryBreakdown";
 import { ExportPDFButton } from "@/components/assessments/ExportPDFButton";
@@ -54,7 +54,7 @@ export default async function AssessmentResultsPage({ params }: Props) {
 
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get("session")?.value;
-  const session = sessionCookie ? await verifyToken(sessionCookie).catch(() => null) : null;
+  const session = await getSession(sessionCookie);
   const isAdmin = session?.role === "admin";
 
   const assessment = db
