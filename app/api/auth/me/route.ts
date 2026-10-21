@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyToken } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
@@ -9,7 +9,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    const payload = await verifyToken(token);
+    const payload = await getSession(token);
+    if (!payload) {
+      return NextResponse.json({ error: "Invalid session" }, { status: 401 });
+    }
 
     return NextResponse.json({
       user: {

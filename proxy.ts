@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyToken } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 
 /**
  * Paths that require no authentication.
@@ -37,24 +37,13 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     return unauthenticated(req);
   }
 
-  try {
-    // verifyToken only accepts session tokens, never the MFA pre-auth token
-    const { role } = await verifyToken(token);
+  // Checks the signature and the user's current DB state (still active, same
+  // password, current role), so deactivation or demotion applies at once.
+  // Pages such as /customers rely on this check alone.
+  const session = await getSession(token);
 
-    // Admin pages/routes require role = "admin"
-    if (
-      (pathname.startsWith("/admin") || pathname.startsWith("/api/admin")) &&
-      role !== "admin"
-    ) {
-      if (pathname.startsWith("/api/")) {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-      }
-      return NextResponse.redirect(new URL("/dashboard", req.url));
-    }
-
-    return NextResponse.next();
-  } catch {
-    // Invalid or expired token — clear cookie and redirect/401
+  if (!session) {
+    // Invalid, expired or revoked session — clear cookie and redirect/401
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -64,6 +53,19 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     response.cookies.delete("session");
     return response;
   }
+
+  // Admin pages/routes require role = "admin"
+  if (
+    (pathname.startsWith("/admin") || pathname.startsWith("/api/admin")) &&
+    session.role !== "admin"
+  ) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    return NextResponse.redirect(new URL("/dashboard", req.url));
+  }
+
+  return NextResponse.next();
 }
 
 function unauthenticated(req: NextRequest): NextResponse {

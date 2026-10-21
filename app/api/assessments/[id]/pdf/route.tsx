@@ -8,7 +8,7 @@ import { assessments, customers, users, templates, settings } from "@/lib/db/sch
 import { getQuestionsForTemplate } from "@/lib/questions-db";
 import { buildSummary } from "@/lib/summary";
 import { AssessmentReport } from "@/components/pdf/AssessmentReport";
-import { verifyToken } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 import { log } from "@/lib/logger";
 import type { Answer } from "@/lib/scoring";
 
@@ -29,7 +29,7 @@ export async function GET(
 ): Promise<NextResponse> {
   try {
     const sessionCookie = req.cookies.get("session")?.value;
-    const session = sessionCookie ? await verifyToken(sessionCookie).catch(() => null) : null;
+    const session = await getSession(sessionCookie);
     const { id } = await params;
     const assessmentId = parseInt(id, 10);
     if (isNaN(assessmentId)) {

@@ -3,7 +3,7 @@ import { hashPassword, verifyPassword } from "@/lib/password";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
-import { verifyToken } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 import { log } from "@/lib/logger";
 
 // POST /api/auth/change-password — change own password (requires current password)
@@ -14,7 +14,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    const session = await verifyToken(token);
+    const session = await getSession(token);
+    if (!session) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
 
     const body = await req.json() as {
       currentPassword?: string;

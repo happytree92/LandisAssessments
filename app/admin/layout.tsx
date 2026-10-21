@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { verifyToken } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { redirect } from "next/navigation";
 
@@ -15,15 +15,10 @@ export default async function AdminLayout({
 
   if (!token) redirect("/login");
 
-  let role = "staff";
-  try {
-    const payload = await verifyToken(token);
-    role = payload.role;
-  } catch {
-    redirect("/login");
-  }
+  const session = await getSession(token);
+  if (!session) redirect("/login");
 
-  if (role !== "admin") {
+  if (session.role !== "admin") {
     redirect("/403");
   }
 

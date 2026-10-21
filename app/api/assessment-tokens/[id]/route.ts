@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { assessmentTokens } from "@/lib/db/schema";
-import { verifyToken } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 import { log } from "@/lib/logger";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -17,7 +17,10 @@ export async function PATCH(
     if (!sessionCookie) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    await verifyToken(sessionCookie);
+    const session = await getSession(sessionCookie);
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     const { id } = await params;
     const tokenId = parseInt(id, 10);
@@ -35,9 +38,6 @@ export async function PATCH(
       return NextResponse.json({ error: "Cannot revoke a completed token" }, { status: 409 });
     }
 
-    const adminToken = req.cookies.get("session")?.value;
-    const adminSession = adminToken ? await verifyToken(adminToken).catch(() => null) : null;
-
     db.update(assessmentTokens)
       .set({ isActive: 0 })
       .where(eq(assessmentTokens.id, tokenId))
@@ -47,8 +47,8 @@ export async function PATCH(
       level: "warn",
       category: "token",
       action: "token.revoked",
-      userId: adminSession?.userId,
-      username: adminSession?.username,
+      userId: session.userId,
+      username: session.username,
       resourceType: "assessment_token",
       resourceId: tokenId,
       metadata: { customerId: existing.customerId, templateId: existing.templateId },

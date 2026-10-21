@@ -5,7 +5,7 @@ import { cookies } from "next/headers";
 import { isNotNull, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { customers, assessments } from "@/lib/db/schema";
-import { verifyToken } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScoreTrendline } from "@/components/dashboard/ScoreTrendline";
 
@@ -89,12 +89,8 @@ export default async function DashboardPage() {
   const token = cookieStore.get("session")?.value;
   let displayName = "there";
   if (token) {
-    try {
-      const payload = await verifyToken(token);
-      displayName = payload.displayName;
-    } catch {
-      // use fallback
-    }
+    const session = await getSession(token);
+    if (session) displayName = session.displayName;
   }
 
   const customerCount = db.select().from(customers).all().length;

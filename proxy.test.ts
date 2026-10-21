@@ -1,16 +1,23 @@
 import { NextRequest } from "next/server";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { signPreAuthToken, signToken, type SessionPayload } from "@/lib/auth";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { signPreAuthToken } from "@/lib/auth";
+import type { User } from "@/lib/db/schema";
+import { createUser, sessionTokenFor, updateUser, useTempDatabase } from "@/lib/testing/temp-db";
 import { proxy } from "./proxy";
 
-const staff: SessionPayload = { userId: 2, username: "bob", displayName: "Bob", role: "staff" };
-const admin: SessionPayload = { userId: 1, username: "admin", displayName: "Admin", role: "admin" };
+let cleanup: () => void;
+let staff: User;
+let admin: User;
 
-beforeEach(() => {
+beforeAll(async () => {
   vi.stubEnv("JWT_SECRET", "test-secret-that-is-at-least-32-characters");
+  cleanup = await useTempDatabase();
+  staff = createUser("bob");
+  admin = createUser("alice", { role: "admin" });
 });
 
-afterEach(() => {
+afterAll(() => {
+  cleanup();
   vi.unstubAllEnvs();
 });
 
@@ -31,7 +38,7 @@ function passedThrough(response: Response): boolean {
 
 describe("proxy", () => {
   it("lets a signed-in user reach staff pages and APIs", async () => {
-    const token = await signToken(staff);
+    const token = await sessionTokenFor(staff);
 
     expect(passedThrough(await proxy(request("/customers", token)))).toBe(true);
     expect(passedThrough(await proxy(request("/api/customers", token)))).toBe(true);
@@ -43,24 +50,55 @@ describe("proxy", () => {
   });
 
   it("does not accept the MFA pre-auth token as a session", async () => {
-    const preAuth = await signPreAuthToken({ ...admin, mfaPending: true });
+    const preAuth = await signPreAuthToken({
+      userId: admin.id,
+      username: admin.username,
+      displayName: admin.displayName,
+      role: "admin",
+      mfaPending: true,
+    });
 
     expect(redirectPath(await proxy(request("/admin/users", preAuth)))).toBe("/login");
     expect((await proxy(request("/api/admin/users", preAuth))).status).toBe(401);
   });
 
   it("keeps staff out of admin pages and APIs", async () => {
-    const token = await signToken(staff);
+    const token = await sessionTokenFor(staff);
 
     expect(redirectPath(await proxy(request("/admin/users", token)))).toBe("/dashboard");
     expect((await proxy(request("/api/admin/users", token))).status).toBe(403);
   });
 
   it("lets admins into admin pages and APIs", async () => {
-    const token = await signToken(admin);
+    const token = await sessionTokenFor(admin);
 
     expect(passedThrough(await proxy(request("/admin/users", token)))).toBe(true);
     expect(passedThrough(await proxy(request("/api/admin/users", token)))).toBe(true);
+  });
+
+  it("signs out a user as soon as they're deactivated", async () => {
+    const user = createUser("carol");
+    const token = await sessionTokenFor(user);
+    expect(passedThrough(await proxy(request("/customers", token)))).toBe(true);
+
+    updateUser(user.id, { isActive: 0 });
+
+    const page = await proxy(request("/customers", token));
+    expect(redirectPath(page)).toBe("/login");
+    expect(page.headers.get("set-cookie")).toMatch(/session=;/);
+    expect((await proxy(request("/api/customers", token))).status).toBe(401);
+  });
+
+  it("treats a demoted admin as staff straight away", async () => {
+    const user = createUser("dave", { role: "admin" });
+    const token = await sessionTokenFor(user);
+    expect(passedThrough(await proxy(request("/admin/users", token)))).toBe(true);
+
+    updateUser(user.id, { role: "staff" });
+
+    expect(redirectPath(await proxy(request("/admin/users", token)))).toBe("/dashboard");
+    expect((await proxy(request("/api/admin/users", token))).status).toBe(403);
+    expect(passedThrough(await proxy(request("/customers", token)))).toBe(true);
   });
 
   it("leaves the public login, MFA challenge and assessment-link routes open", async () => {

@@ -4,14 +4,12 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
-import { verifyToken } from "@/lib/auth";
 import type { SessionPayload } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { users } from "@/lib/db/schema";
+import { getSession } from "@/lib/session";
 
 /**
- * Requires a valid session cookie. Returns the session payload or a 401 NextResponse.
+ * Requires a valid session cookie for a user who is still active. Returns the
+ * session payload (role and name as they are in the DB now) or a 401 NextResponse.
  * Usage: const session = await requireSession(req); if (isAuthError(session)) return session;
  */
 export async function requireSession(req: NextRequest): Promise<SessionPayload | NextResponse> {
@@ -19,38 +17,16 @@ export async function requireSession(req: NextRequest): Promise<SessionPayload |
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  try {
-    const session = await verifyToken(token);
-
-    // Validate that the session hasn't been invalidated by a password change.
-    // users.passwordChangedAt is set whenever a password is changed (by the user
-    // or by an admin reset). A token whose pwdAt doesn't match the current DB value
-    // was issued before the change and must be rejected.
-    const row = db
-      .select({ passwordChangedAt: users.passwordChangedAt })
-      .from(users)
-      .where(eq(users.id, session.userId))
-      .get();
-
-    if (!row) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    if (
-      row.passwordChangedAt !== null &&
-      row.passwordChangedAt !== (session.pwdAt ?? null)
-    ) {
-      return NextResponse.json({ error: "Session expired — please sign in again" }, { status: 401 });
-    }
-
-    return session;
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await getSession(token);
+  if (!session) {
+    return NextResponse.json({ error: "Session expired — please sign in again" }, { status: 401 });
   }
+  return session;
 }
 
 /**
- * Requires a valid session with role=admin. Returns the session payload or a 401/403 NextResponse.
+ * Requires a valid session whose user is an admin in the DB right now.
+ * Returns the session payload or a 401/403 NextResponse.
  */
 export async function requireAdmin(req: NextRequest): Promise<SessionPayload | NextResponse> {
   const result = await requireSession(req);

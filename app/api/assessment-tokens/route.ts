@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { assessmentTokens, customers, templates } from "@/lib/db/schema";
-import { verifyToken } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 import { getBaseUrl } from "@/lib/config";
 import { log } from "@/lib/logger";
 
@@ -13,7 +13,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     if (!sessionCookie) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const session = await verifyToken(sessionCookie);
+    const session = await getSession(sessionCookie);
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     const body = await req.json();
     const { customerId, templateId, expiresInDays } = body as {
@@ -91,7 +94,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     if (!sessionCookie) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    await verifyToken(sessionCookie);
+    if (!(await getSession(sessionCookie))) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     const customerIdParam = req.nextUrl.searchParams.get("customerId");
     if (!customerIdParam) {

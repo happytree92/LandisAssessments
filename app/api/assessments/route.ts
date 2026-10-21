@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { assessments, customers, templates } from "@/lib/db/schema";
-import { verifyToken } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 import { log } from "@/lib/logger";
 
 // POST /api/assessments — create a draft assessment (no answers yet)
@@ -13,7 +13,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const session = await verifyToken(token);
+    const session = await getSession(token);
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     const body = await req.json();
     const { customerId, templateId } = body as {

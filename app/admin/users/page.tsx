@@ -1,7 +1,8 @@
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
-import { verifyToken } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 import { UsersManager } from "@/components/admin/UsersManager";
 
 export const dynamic = "force-dynamic";
@@ -17,8 +18,8 @@ function formatDate(unix: number | null): string {
 
 export default async function AdminUsersPage() {
   const cookieStore = await cookies();
-  const token = cookieStore.get("session")!.value;
-  const session = await verifyToken(token);
+  const session = await getSession(cookieStore.get("session")?.value);
+  if (!session) redirect("/login");
 
   const allUsers = db
     .select({

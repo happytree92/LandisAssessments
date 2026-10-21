@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { settings } from "@/lib/db/schema";
-import { verifyToken } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 import { UserMenu } from "./UserMenu";
 
 export async function TopNav() {
@@ -12,13 +12,10 @@ export async function TopNav() {
 
   let displayName = "";
   let role = "staff";
-  try {
-    const payload = await verifyToken(token);
-    displayName = payload.displayName;
-    role = payload.role;
-  } catch {
-    return null;
-  }
+  const session = await getSession(token);
+  if (!session) return null;
+  displayName = session.displayName;
+  role = session.role;
 
   const rows = db.select().from(settings).all();
   const settingsMap = Object.fromEntries(rows.map((r) => [r.key, r.value]));
